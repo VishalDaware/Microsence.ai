@@ -1,0 +1,26 @@
+{
+  "features": [
+    "CO2_ppm",
+    "Nitrate_ppm",
+    "pH",
+    "Temp_C",
+    "Moisture_pct"
+  ],
+  "rmse": 0.30751837690678413,
+  "accuracy": 0.8595,
+  "feature_importance": {
+    "CO2_ppm": 0.3707149441563317,
+    "Nitrate_ppm": 0.5401955197361527,
+    "pH": 0.08126218212314246,
+    "Temp_C": 0.0038859693587978174,
+    "Moisture_pct": 0.003941384625575352
+  },
+  "trained_at": "2026-02-06T10:11:01.851375",
+  "class_labels": [
+    "Very Poor",
+    "Poor",
+    "Fair",
+    "Good",
+    "Excellent"
+  ]
+}

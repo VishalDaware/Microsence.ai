@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums based on frontend metric types and monitoring statuses
+enum StatusType {
+  SUCCESS
+  ERROR
+  WARNING
+}
+
+// User model for authentication
+model User {
+  id        Int             @id @default(autoincrement())
+  name      String
+  email     String          @unique
+  password  String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  fields    Field[]
+  readings  SensorReading[]
+}
+
+// A Field represents a physical area / sensor group (e.g., Field A)
+model Field {
+  id        Int             @id @default(autoincrement())
+  name      String
+  location  String?
+  userId    Int
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+  readings  SensorReading[]
+
+  @@index([userId])
+}
+
+// Single sensor reading row with all sensor values
+model SensorReading {
+  id           Int       @id @default(autoincrement())
+  soilMoisture Float?    // %
+  temperature  Float?    // °C
+  co2          Float?    // ppm
+  nitrate      Float?    // mg/L
+  ph           Float?    // pH scale
+  timestamp    DateTime  @default(now())
+  fieldId      Int
+  field        Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([fieldId])
+  @@index([userId])
+}
+
+// Recommendations extracted/shown by the frontend
+model Recommendation {
+  id        Int      @id @default(autoincrement())
+  text      String
+  severity  Int?
+  createdAt DateTime @default(now())
+}
+
+// Monitoring status records for sensors
+model MonitoringStatus {
+  id        Int      @id @default(autoincrement())
+  label     String
+  status    String
+  type      StatusType
+  updatedAt DateTime @updatedAt
+}
