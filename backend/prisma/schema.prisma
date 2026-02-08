@@ -30,6 +30,7 @@ model User {
   updatedAt DateTime        @updatedAt
   fields    Field[]
   readings  SensorReading[]
+  farms     Farm[]
 }
 
 // A Field represents a physical area / sensor group (e.g., Field A)
@@ -39,8 +40,24 @@ model Field {
   location  String?
   userId    Int
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farmId    Int?
+  farm      Farm?           @relation(fields: [farmId], references: [id], onDelete: Cascade)
   createdAt DateTime        @default(now())
   readings  SensorReading[]
+
+  @@index([userId])
+}
+
+// A Farm groups multiple fields (one farm can have many fields)
+model Farm {
+  id        Int      @id @default(autoincrement())
+  name      String
+  location  String?
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fields    Field[]
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }

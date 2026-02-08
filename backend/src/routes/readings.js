@@ -12,43 +12,44 @@ const router = express.Router();
 router.post('/generate', async (req, res) => {
   try {
     // Get or create default admin user
-    let adminUser = await prisma.user.findUnique({
-      where: { email: 'admin@farm.local' },
-    });
+    let adminUser = await prisma.user.findUnique({ where: { email: 'admin@farm.local' } });
 
     if (!adminUser) {
-      adminUser = await prisma.user.create({
-        data: {
-          name: 'Admin',
-          email: 'admin@farm.local',
-          password: 'admin123',
-        },
-      });
+      adminUser = await prisma.user.create({ data: { name: 'Admin', email: 'admin@farm.local', password: 'admin123' } });
     }
 
-    // Fetch all fields ordered by creation (round-robin)
-    let fields = await prisma.field.findMany({
-      where: { userId: adminUser.id },
-      orderBy: { createdAt: 'asc' },
-    });
+    const { farmId } = req.body || {};
 
-    // If no field exists → create default Field 1
-    if (fields.length === 0) {
-      const newField = await prisma.field.create({
-        data: {
-          name: 'Field 1',
-          location: 'Default Location',
-          userId: adminUser.id,
-        },
-      });
+    let fields = [];
+    let selectedFarm = null;
+
+    if (farmId) {
+      // Find the farm and ensure it's not completed
+      selectedFarm = await prisma.farm.findUnique({ where: { id: parseInt(farmId) }, include: { fields: { orderBy: { createdAt: 'asc' } } } });
+      if (!selectedFarm) return res.status(404).json({ success: false, error: 'Farm not found' });
+      if (selectedFarm.completed) return res.status(400).json({ success: false, error: 'Farm sampling is completed' });
+      fields = selectedFarm.fields;
+    } else {
+      // Fetch all fields ordered by creation (round-robin) across farms
+      fields = await prisma.field.findMany({ where: { userId: adminUser.id }, orderBy: { createdAt: 'asc' } });
+    }
+
+    // If no field exists → create default Farm and Field
+    if (!fields || fields.length === 0) {
+      let defaultFarm;
+      if (!selectedFarm) {
+        defaultFarm = await prisma.farm.create({ data: { name: 'Default Farm', location: 'Unknown', userId: adminUser.id } });
+      } else {
+        defaultFarm = selectedFarm;
+      }
+      const newField = await prisma.field.create({ data: { name: 'Field 1', location: 'Default Location', userId: adminUser.id, farmId: defaultFarm.id } });
       fields = [newField];
+      selectedFarm = defaultFarm;
     }
 
-    // Find last used field
-    const lastReading = await prisma.sensorReading.findFirst({
-      where: { userId: adminUser.id },
-      orderBy: { timestamp: 'desc' },
-    });
+    // Find last used field scoped to farm if farmId provided else global
+    const lastReadingWhere = farmId ? { userId: adminUser.id, field: { farmId: parseInt(farmId) } } : { userId: adminUser.id };
+    const lastReading = await prisma.sensorReading.findFirst({ where: lastReadingWhere, orderBy: { timestamp: 'desc' } });
 
     let nextField;
 
@@ -61,6 +62,8 @@ router.post('/generate', async (req, res) => {
 
     // Generate sensor data
     const generatedReading = generateRandomReadings();
+
+    console.log('Generating reading:', { farmId, selectedFarmId: selectedFarm?.id, nextFieldId: nextField.id, nextFieldFarmId: nextField.farmId });
 
     // Save reading
     const savedReading = await prisma.sensorReading.create({
@@ -75,11 +78,7 @@ router.post('/generate', async (req, res) => {
       },
     });
 
-    res.json({
-      success: true,
-      assignedFieldId: nextField.id,
-      reading: savedReading,
-    });
+    res.json({ success: true, assignedFieldId: nextField.id, reading: savedReading, farmId: selectedFarm ? selectedFarm.id : null });
   } catch (error) {
     console.error('Error generating readings:', error);
     res.status(500).json({ error: error.message });
@@ -87,15 +86,23 @@ router.post('/generate', async (req, res) => {
 });
 
 /**
- * GET /api/readings/latest?fieldId=
- * Get latest reading (optionally field-scoped)
+ * GET /api/readings/latest?fieldId=&farmId=
+ * Get latest reading (optionally field-scoped or farm-scoped)
  */
 router.get('/latest', async (req, res) => {
   try {
-    const { fieldId } = req.query;
+    const { fieldId, farmId } = req.query;
+
+    let where = {};
+    if (fieldId) {
+      where.fieldId = parseInt(fieldId);
+    } else if (farmId) {
+      // Filter by farmId through field relationship
+      where.field = { farmId: parseInt(farmId) };
+    }
 
     const latestReading = await prisma.sensorReading.findFirst({
-      where: fieldId ? { fieldId: parseInt(fieldId) } : {},
+      where,
       orderBy: { timestamp: 'desc' },
       include: { field: true },
     });
@@ -154,25 +161,37 @@ router.get('/latest', async (req, res) => {
 });
 
 /**
- * GET /api/readings/all?fieldId=
+ * GET /api/readings/all?fieldId=&farmId=
  * Get all readings (ASC order for chart timeline)
  */
 router.get('/all', async (req, res) => {
   try {
-    const { fieldId } = req.query;
+    const { fieldId, farmId } = req.query;
     const limit = parseInt(req.query.limit) || 200;
     const skip = parseInt(req.query.skip) || 0;
 
+    let where = {};
+    if (fieldId) {
+      where.fieldId = parseInt(fieldId);
+    } else if (farmId) {
+      // Filter by farmId through field relationship
+      where.field = { farmId: parseInt(farmId) };
+    }
+
+    console.log('Readings query:', { fieldId, farmId, where });
+
     const readings = await prisma.sensorReading.findMany({
-      where: fieldId ? { fieldId: parseInt(fieldId) } : {},
+      where,
       orderBy: { timestamp: 'asc' },
       take: limit,
       skip,
       include: { field: true },
     });
 
+    console.log('Found readings:', readings.length, readings.slice(0, 2).map(r => ({ id: r.id, fieldId: r.fieldId, field: r.field })));
+
     const total = await prisma.sensorReading.count({
-      where: fieldId ? { fieldId: parseInt(fieldId) } : {},
+      where,
     });
 
     res.json({

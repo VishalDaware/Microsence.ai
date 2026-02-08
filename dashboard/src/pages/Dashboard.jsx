@@ -9,6 +9,7 @@ import {
 import MetricCard from "../components/MetricCard";
 import RecommendationCard from "../components/RecommendationCard";
 import MonitoringStatusCard from "../components/MonitoringStatusCard";
+// charts removed
 
 const API_BASE_URL = "http://localhost:5000/api";
 const ML_SERVICE_URL = "http://localhost:5001/api";
@@ -23,25 +24,35 @@ const fallbackRecommendations = [
 
 export default function Dashboard({ user }) {
   const [fields, setFields] = useState([]);
+  const [farms, setFarms] = useState([]);
   const [selectedField, setSelectedField] = useState(null);
+  const [selectedFarm, setSelectedFarm] = useState(null);
   const [metrics, setMetrics] = useState({});
   const [loading, setLoading] = useState(false);
 
   // ML state
   const [predictions, setPredictions] = useState(null);
   const [mlRecommendations, setMlRecommendations] = useState([]);
+  // removed charts state
 
   // ===================== FETCH FIELDS =====================
   const fetchFields = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/fields/list?userId=${user.id}`);
-      const data = await res.json();
-
-      if (data.success && data.fields) {
-        setFields(data.fields);
-        if (!selectedField && data.fields.length > 0) {
-          setSelectedField(data.fields[0].id);
-        }
+      // Fetch farms (includes fields)
+      const farmRes = await fetch(`${API_BASE_URL}/farms`);
+      const farmData = await farmRes.json();
+      if (farmData.success && Array.isArray(farmData.farms)) {
+        setFarms(farmData.farms);
+        // if a farm is selected already keep it, else pick first
+        const farmToUse = selectedFarm || (farmData.farms.length > 0 ? farmData.farms[0].id : null);
+        setSelectedFarm(farmToUse);
+        const fieldsList = farmData.farms.find((f) => f.id === farmToUse)?.fields || [];
+        setFields(fieldsList);
+        if (!selectedField && fieldsList.length > 0) setSelectedField(fieldsList[0].id);
+      } else {
+        setFarms([]);
+        setFields([]);
+        setSelectedField(null);
       }
     } catch (err) {
       console.error("Field fetch error:", err);
@@ -107,8 +118,11 @@ export default function Dashboard({ user }) {
   const generateData = async () => {
     setLoading(true);
     try {
+      const body = selectedFarm ? { farmId: selectedFarm } : {};
       const res = await fetch(`${API_BASE_URL}/readings/generate`, {
         method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -138,6 +152,60 @@ export default function Dashboard({ user }) {
     fetchFields();
   }, []);
 
+  // fetch farm latest readings (one per field) when farm selected
+  useEffect(() => {
+    const fetchFarmLatest = async () => {
+      if (!selectedFarm) return;
+      try {
+        const farm = farms.find((f) => f.id === selectedFarm);
+        if (!farm || !farm.fields || farm.fields.length === 0) return;
+
+        const latestPromises = farm.fields.map((fld) =>
+          fetch(`${API_BASE_URL}/readings/latest?fieldId=${fld.id}`).then((r) => r.json()).then((d) => ({ fieldId: fld.id, fieldName: fld.name, data: d }))
+        );
+
+        const latest = await Promise.all(latestPromises);
+        // build distribution for moisture levels using latest readings
+        const low = latest.filter((l) => l.data?.readings?.soilmoisture?.value < 30).length;
+        const ok = latest.filter((l) => l.data?.readings?.soilmoisture?.value >= 30 && l.data?.readings?.soilmoisture?.value <= 70).length;
+        const high = latest.filter((l) => l.data?.readings?.soilmoisture?.value > 70).length;
+
+        setFarmDistribution([
+          { label: "Low (<30%)", value: low },
+          { label: "Optimal (30-70%)", value: ok },
+          { label: "High (>70%)", value: high },
+        ]);
+      } catch (err) {
+        console.error("Farm latest fetch error:", err);
+      }
+    };
+
+    fetchFarmLatest();
+  }, [selectedFarm, farms]);
+
+  // fetch timeline for selected field
+  useEffect(() => {
+    const fetchFieldTimeline = async () => {
+      if (!selectedField) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/readings/all?fieldId=${selectedField}&limit=200`);
+        const data = await res.json();
+        if (data.success) {
+          // prepare moisture timeline
+          const timeline = data.readings.map((r) => ({ timestamp: r.timestamp, value: r.soilMoisture }));
+          setFieldTimeline(timeline);
+        }
+      } catch (err) {
+        console.error("Field timeline error:", err);
+      }
+    };
+    fetchFieldTimeline();
+  }, [selectedField]);
+
+  // local UI states for charts
+  const [farmDistribution, setFarmDistribution] = useState([]);
+  const [fieldTimeline, setFieldTimeline] = useState([]);
+
   useEffect(() => {
     if (selectedField) {
       fetchLatest(selectedField);
@@ -155,19 +223,41 @@ export default function Dashboard({ user }) {
           <p className="text-gray-600">Real-time soil monitoring</p>
         </div>
 
-        {fields.length > 0 && (
-          <select
-            value={selectedField || ""}
-            onChange={(e) => setSelectedField(parseInt(e.target.value))}
-            className="px-4 py-2 border rounded-lg"
-          >
-            {fields.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        )}
+        <div className="flex items-center gap-3">
+          {farms.length > 0 && (
+            <select
+              value={selectedFarm || ""}
+              onChange={(e) => {
+                const farmId = parseInt(e.target.value);
+                setSelectedFarm(farmId);
+                const farm = farms.find((x) => x.id === farmId) || { fields: [] };
+                setFields(farm.fields || []);
+                if (farm.fields && farm.fields.length > 0) setSelectedField(farm.fields[0].id);
+              }}
+              className="px-4 py-2 border rounded-lg"
+            >
+              {farms.map((farm) => (
+                <option key={farm.id} value={farm.id}>
+                  {farm.name}{farm.completed ? ' (Completed)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {fields.length > 0 && (
+            <select
+              value={selectedField || ""}
+              onChange={(e) => setSelectedField(parseInt(e.target.value))}
+              className="px-4 py-2 border rounded-lg"
+            >
+              {fields.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {/* ACTION BUTTONS */}
@@ -185,6 +275,39 @@ export default function Dashboard({ user }) {
           className="px-4 py-2 bg-gray-600 text-white rounded-lg"
         >
           Refresh
+        </button>
+        {selectedFarm && (
+          <button
+            onClick={async () => {
+              if (!window.confirm('Mark this farm as completed? This will prevent further sampling.')) return;
+              try {
+                await fetch(`${API_BASE_URL}/farms/${selectedFarm}/complete`, { method: 'POST' });
+                // refresh farms
+                await fetchFields();
+              } catch (err) {
+                console.error('Complete farm error:', err);
+              }
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg"
+          >
+            Mark Farm Complete
+          </button>
+        )}
+
+        <button
+          onClick={async () => {
+            const name = window.prompt('New farm name');
+            if (!name) return;
+            try {
+              await fetch(`${API_BASE_URL}/farms`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+              await fetchFields();
+            } catch (err) {
+              console.error('Create farm error:', err);
+            }
+          }}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg"
+        >
+          Add Farm
         </button>
       </div>
 
@@ -229,6 +352,11 @@ export default function Dashboard({ user }) {
         <MonitoringStatusCard label="Soil Sensor" status="OK" type="success" />
         <MonitoringStatusCard label="CO₂ Sensor" status="Stable" type="success" />
       </div>
+
+      {/* CHARTS: farm distribution + field timeline */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Charts removed per request */}
+        </div>
 
       {/* RECOMMENDATIONS */}
       <RecommendationCard

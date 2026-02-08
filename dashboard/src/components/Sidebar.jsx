@@ -42,7 +42,7 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Nav links (no overflow here) */}
         <nav className="flex-1 px-3 py-4 space-y-1">
           <SidebarLink icon={<HomeIcon className="w-5 h-5" />} label="Dashboard" to="/" />
-          <SidebarLink icon={<MapPinIcon className="w-5 h-5" />} label="Field Management" to="/fields" />
+          <SidebarLink icon={<MapPinIcon className="w-5 h-5" />} label="Farm Management" to="/fields" />
           <SidebarLink icon={<DocumentChartBarIcon className="w-5 h-5" />} label="Reports" to="/reports" />
           <SidebarLink icon={<ChartBarIcon className="w-5 h-5" />} label="Charts" to="/charts" />
           <SidebarLink icon={<CubeIcon className="w-5 h-5" />} label="Components" to="/components" />

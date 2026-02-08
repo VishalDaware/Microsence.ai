@@ -3,11 +3,13 @@ const express = require('express');
 const cors = require('cors');
 
 // Wrap route loading in try-catch to catch any initialization errors
-let readingsRouter, authRouter, fieldsRouter;
+let readingsRouter, authRouter, fieldsRouter, farmsRouter;
 try {
   readingsRouter = require('./src/routes/readings');
   authRouter = require('./src/routes/auth');
   fieldsRouter = require('./src/routes/fields');
+  // new farm routes
+  farmsRouter = require('./src/routes/farms');
 } catch (error) {
   console.error('Error loading routes:', error.message);
   console.error(error.stack);
@@ -28,6 +30,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/readings', readingsRouter);
 app.use('/api/fields', fieldsRouter);
+app.use('/api/farms', farmsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

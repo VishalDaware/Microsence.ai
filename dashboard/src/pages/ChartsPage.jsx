@@ -105,22 +105,51 @@ export default function ChartsPage() {
   const [latestReading, setLatestReading] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch data from backend
+  // Farms and selection
+  const [farms, setFarms] = useState([]);
+  const [selectedFarmId, setSelectedFarmId] = useState(null);
+
+  // Fetch farms on mount and initial readings
   useEffect(() => {
-    fetchData();
+    fetchFarms();
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    fetchData(selectedFarmId);
+  }, [selectedFarmId]);
+
+  const fetchFarms = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/farms`);
+      const data = await res.json();
+      if (data.success) {
+        setFarms(data.farms || []);
+        if ((data.farms || []).length > 0) {
+          setSelectedFarmId((prev) => prev ?? data.farms[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching farms:', err);
+    }
+  };
+
+  const fetchData = async (farmId = null) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/readings/all?limit=20`);
+      let url = `${API_BASE_URL}/readings/all?limit=20`;
+      if (farmId) url += `&farmId=${farmId}`;
+      const response = await fetch(url);
       const data = await response.json();
+      console.log('Fetched readings:', { farmId, url, data });
       if (data.success) {
         setReadingsData(data.readings || []);
       }
 
-      const latestRes = await fetch(`${API_BASE_URL}/readings/latest`);
+      let latestUrl = `${API_BASE_URL}/readings/latest`;
+      if (farmId) latestUrl += `?farmId=${farmId}`;
+      const latestRes = await fetch(latestUrl);
       const latestData = await latestRes.json();
+      console.log('Fetched latest:', { farmId, latestUrl, latestData });
       if (latestData.success) {
         setLatestReading(latestData.rawReading);
       }
@@ -344,100 +373,340 @@ export default function ChartsPage() {
         </div>
       )}
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Soil Moisture Trend - Line Chart */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-blue-500 transition-colors">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <PresentationChartLineIcon className="w-6 h-6 text-blue-400" />
-            Soil Moisture Trend
-          </h2>
-          <div style={{ height: "300px" }}>
-            <Line
-              data={moistureData}
-              options={{
-                ...chartOptions,
-                plugins: {
-                  ...chartOptions.plugins,
-                  filler: { propagate: true },
-                },
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Temperature Distribution - Bar Chart */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-red-500 transition-colors">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <ChartBarIcon className="w-6 h-6 text-red-400" />
-            Temperature Readings
-          </h2>
-          <div style={{ height: "300px" }}>
-            <Bar data={temperatureData} options={chartOptions} />
-          </div>
-        </div>
-
-        {/* Sensor Comparison - Radar Chart */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-purple-500 transition-colors">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <ChartPieIcon className="w-6 h-6 text-purple-400" />
-            Sensor Health Comparison
-          </h2>
-          <div style={{ height: "300px" }}>
-            <Radar data={sensorComparisonData} options={radarChartOptions} />
-          </div>
-        </div>
-
-        {/* Gas Levels Distribution - Doughnut Chart */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-cyan-500 transition-colors">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <ChartPieIcon className="w-6 h-6 text-cyan-400" />
-            Gas & Nutrient Levels
-          </h2>
-          <div style={{ height: "300px" }}>
-            <Doughnut
-              data={gasLevelData}
-              options={{
-                ...chartOptions,
-                plugins: {
-                  ...chartOptions.plugins,
-                  legend: {
-                    ...chartOptions.plugins.legend,
-                    position: "bottom",
-                  },
-                },
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Environmental Conditions - Stacked Bar */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-green-500 transition-colors lg:col-span-2">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <ChartBarIcon className="w-6 h-6 text-green-400" />
-            Environmental Conditions Overview
-          </h2>
-          <div style={{ height: "300px" }}>
-            <Bar
-              data={environmentalData}
-              options={{
-                ...chartOptions,
-                scales: {
-                  ...chartOptions.scales,
-                  x: {
-                    ...chartOptions.scales.x,
-                    stacked: false,
-                  },
-                  y: {
-                    ...chartOptions.scales.y,
-                    stacked: false,
-                  },
-                },
-              }}
-            />
-          </div>
-        </div>
+      {/* Farm selector */}
+      <div className="mb-6 flex items-center gap-4">
+        <label className="text-slate-300">Select Farm:</label>
+        <select
+          className="bg-slate-800 text-white rounded-md p-2"
+          value={selectedFarmId ?? ""}
+          onChange={(e) => setSelectedFarmId(e.target.value ? Number(e.target.value) : null)}
+        >
+          <option value="">All Farms</option>
+          {farms.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+        <button
+          className="ml-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md px-3 py-2"
+          onClick={() => fetchData(selectedFarmId)}
+        >
+          Refresh
+        </button>
       </div>
+
+      {/* Charts Grid */}
+      {selectedFarmId ? (
+        // Render multi-field charts for the selected farm
+        (() => {
+          const farm = farms.find((x) => x.id === selectedFarmId) || null;
+          const fields = farm?.fields || [];
+
+          if (fields.length === 0) {
+            return <div className="text-slate-300">No fields in selected farm.</div>;
+          }
+
+          // Color palette for fields
+          const fieldColors = [
+            "rgb(59, 130, 246)",   // blue
+            "rgb(239, 68, 68)",    // red
+            "rgb(34, 197, 94)",    // green
+            "rgb(234, 179, 8)",    // yellow
+            "rgb(168, 85, 247)",   // purple
+            "rgb(34, 211, 238)",   // cyan
+          ];
+
+          // Prepare data for Soil Moisture Chart (all fields)
+          const moistureDataMultiField = {
+            labels: readingsData.length > 0 
+              ? readingsData.slice().reverse().map((_, i) => `Reading ${i + 1}`)
+              : [],
+            datasets: fields.map((field, idx) => {
+              const fieldReadings = readingsData
+                .filter((r) => r.fieldId === field.id)
+                .slice()
+                .reverse();
+              return {
+                label: `${field.name} - Soil Moisture (%)`,
+                data: fieldReadings.map((r) => r.soilMoisture),
+                borderColor: fieldColors[idx % fieldColors.length],
+                backgroundColor: fieldColors[idx % fieldColors.length].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 3,
+              };
+            }),
+          };
+
+          // Prepare data for Temperature Chart (all fields)
+          const temperatureDataMultiField = {
+            labels: readingsData.length > 0 
+              ? readingsData.slice().reverse().map((_, i) => `Reading ${i + 1}`)
+              : [],
+            datasets: fields.map((field, idx) => {
+              const fieldReadings = readingsData
+                .filter((r) => r.fieldId === field.id)
+                .slice()
+                .reverse();
+              return {
+                label: `${field.name} - Temperature (°C)`,
+                data: fieldReadings.map((r) => r.temperature),
+                borderColor: fieldColors[idx % fieldColors.length],
+                backgroundColor: fieldColors[idx % fieldColors.length].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 3,
+              };
+            }),
+          };
+
+          // Prepare data for CO2 Chart (all fields)
+          const co2DataMultiField = {
+            labels: readingsData.length > 0 
+              ? readingsData.slice().reverse().map((_, i) => `Reading ${i + 1}`)
+              : [],
+            datasets: fields.map((field, idx) => {
+              const fieldReadings = readingsData
+                .filter((r) => r.fieldId === field.id)
+                .slice()
+                .reverse();
+              return {
+                label: `${field.name} - CO₂ (ppm)`,
+                data: fieldReadings.map((r) => r.co2),
+                borderColor: fieldColors[idx % fieldColors.length],
+                backgroundColor: fieldColors[idx % fieldColors.length].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 3,
+              };
+            }),
+          };
+
+          // Prepare data for Nitrate Chart (all fields)
+          const nitrateDataMultiField = {
+            labels: readingsData.length > 0 
+              ? readingsData.slice().reverse().map((_, i) => `Reading ${i + 1}`)
+              : [],
+            datasets: fields.map((field, idx) => {
+              const fieldReadings = readingsData
+                .filter((r) => r.fieldId === field.id)
+                .slice()
+                .reverse();
+              return {
+                label: `${field.name} - Nitrate (mg/L)`,
+                data: fieldReadings.map((r) => r.nitrate),
+                borderColor: fieldColors[idx % fieldColors.length],
+                backgroundColor: fieldColors[idx % fieldColors.length].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 3,
+              };
+            }),
+          };
+
+          // Prepare data for pH Chart (all fields)
+          const phDataMultiField = {
+            labels: readingsData.length > 0 
+              ? readingsData.slice().reverse().map((_, i) => `Reading ${i + 1}`)
+              : [],
+            datasets: fields.map((field, idx) => {
+              const fieldReadings = readingsData
+                .filter((r) => r.fieldId === field.id)
+                .slice()
+                .reverse();
+              return {
+                label: `${field.name} - pH`,
+                data: fieldReadings.map((r) => r.ph),
+                borderColor: fieldColors[idx % fieldColors.length],
+                backgroundColor: fieldColors[idx % fieldColors.length].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 3,
+              };
+            }),
+          };
+
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Soil Moisture Chart */}
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-blue-500 transition-colors">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <PresentationChartLineIcon className="w-6 h-6 text-blue-400" />
+                  Soil Moisture Trend
+                </h2>
+                <div style={{ height: "300px" }}>
+                  {readingsData.length > 0 ? (
+                    <Line data={moistureDataMultiField} options={chartOptions} />
+                  ) : (
+                    <p className="text-slate-300">No data to display</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Temperature Chart */}
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-red-500 transition-colors">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <ChartBarIcon className="w-6 h-6 text-red-400" />
+                  Temperature Trend
+                </h2>
+                <div style={{ height: "300px" }}>
+                  {readingsData.length > 0 ? (
+                    <Line data={temperatureDataMultiField} options={chartOptions} />
+                  ) : (
+                    <p className="text-slate-300">No data to display</p>
+                  )}
+                </div>
+              </div>
+
+              {/* CO2 Chart */}
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-cyan-500 transition-colors">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <PresentationChartLineIcon className="w-6 h-6 text-cyan-400" />
+                  CO₂ Levels
+                </h2>
+                <div style={{ height: "300px" }}>
+                  {readingsData.length > 0 ? (
+                    <Line data={co2DataMultiField} options={chartOptions} />
+                  ) : (
+                    <p className="text-slate-300">No data to display</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Nitrate Chart */}
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-purple-500 transition-colors">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <ChartBarIcon className="w-6 h-6 text-purple-400" />
+                  Nitrate Levels
+                </h2>
+                <div style={{ height: "300px" }}>
+                  {readingsData.length > 0 ? (
+                    <Line data={nitrateDataMultiField} options={chartOptions} />
+                  ) : (
+                    <p className="text-slate-300">No data to display</p>
+                  )}
+                </div>
+              </div>
+
+              {/* pH Chart */}
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-yellow-500 transition-colors lg:col-span-2">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <PresentationChartLineIcon className="w-6 h-6 text-yellow-400" />
+                  pH Levels
+                </h2>
+                <div style={{ height: "300px" }}>
+                  {readingsData.length > 0 ? (
+                    <Line data={phDataMultiField} options={chartOptions} />
+                  ) : (
+                    <p className="text-slate-300">No data to display</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+        // Fallback: show farm-agnostic charts (original layout)
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Soil Moisture Trend - Line Chart */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-blue-500 transition-colors">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <PresentationChartLineIcon className="w-6 h-6 text-blue-400" />
+              Soil Moisture Trend
+            </h2>
+            <div style={{ height: "300px" }}>
+              <Line
+                data={moistureData}
+                options={{
+                  ...chartOptions,
+                  plugins: {
+                    ...chartOptions.plugins,
+                    filler: { propagate: true },
+                  },
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Temperature Distribution - Bar Chart */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-red-500 transition-colors">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <ChartBarIcon className="w-6 h-6 text-red-400" />
+              Temperature Readings
+            </h2>
+            <div style={{ height: "300px" }}>
+              <Bar data={temperatureData} options={chartOptions} />
+            </div>
+          </div>
+
+          {/* Sensor Comparison - Radar Chart */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-purple-500 transition-colors">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <ChartPieIcon className="w-6 h-6 text-purple-400" />
+              Sensor Health Comparison
+            </h2>
+            <div style={{ height: "300px" }}>
+              <Radar data={sensorComparisonData} options={radarChartOptions} />
+            </div>
+          </div>
+
+          {/* Gas Levels Distribution - Doughnut Chart */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-cyan-500 transition-colors">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <ChartPieIcon className="w-6 h-6 text-cyan-400" />
+              Gas & Nutrient Levels
+            </h2>
+            <div style={{ height: "300px" }}>
+              <Doughnut
+                data={gasLevelData}
+                options={{
+                  ...chartOptions,
+                  plugins: {
+                    ...chartOptions.plugins,
+                    legend: {
+                      ...chartOptions.plugins.legend,
+                      position: "bottom",
+                    },
+                  },
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Environmental Conditions - Stacked Bar */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-6 border border-slate-700 hover:border-green-500 transition-colors lg:col-span-2">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <ChartBarIcon className="w-6 h-6 text-green-400" />
+              Environmental Conditions Overview
+            </h2>
+            <div style={{ height: "300px" }}>
+              <Bar
+                data={environmentalData}
+                options={{
+                  ...chartOptions,
+                  scales: {
+                    ...chartOptions.scales,
+                    x: {
+                      ...chartOptions.scales.x,
+                      stacked: false,
+                    },
+                    y: {
+                      ...chartOptions.scales.y,
+                      stacked: false,
+                    },
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Data Info */}
       <div className="mt-8 bg-gradient-to-r from-blue-900 to-purple-900 rounded-xl p-4 border border-blue-500 text-slate-300">
