@@ -1,12 +1,11 @@
-// src/components/RecommendationCard.jsx
 import {
   CloudIcon,
   FireIcon,
-  ArrowTrendingDownIcon,
   BeakerIcon,
   BoltIcon,
-  SunIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
+
 import { Pie } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -17,85 +16,103 @@ import {
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export default function RecommendationCard({ recommendations }) {
-  const icons = [
-    <CloudIcon className="w-6 h-6 text-blue-500" />,
-    <FireIcon className="w-6 h-6 text-red-500" />,
-    <ArrowTrendingDownIcon className="w-6 h-6 text-green-500" />,
-    <BeakerIcon className="w-6 h-6 text-yellow-500" />,
-    <BoltIcon className="w-6 h-6 text-purple-500" />,
-    <SunIcon className="w-6 h-6 text-orange-500" />,
-  ];
+export default function RecommendationCard({ recommendations, metrics }) {
 
-  // Dummy data for pie chart
+  // Extract numeric values safely
+  const moisture = parseFloat(metrics?.soilmoisture?.value) || 0;
+  const temperature = parseFloat(metrics?.temperature?.value) || 0;
+  const co2 = parseFloat(metrics?.co2?.value) || 0;
+  const nitrate = parseFloat(metrics?.nitrate?.value) || 0;
+  const ph = parseFloat(metrics?.ph?.value) || 0;
+
   const pieData = {
-    labels: ["Soil Moisture", "Temperature", "CO₂", "Nitrate", "pH", "Light"],
+    labels: ["Moisture", "Temperature", "CO₂", "Nitrate", "pH"],
     datasets: [
       {
-        data: [25, 20, 15, 10, 15, 15],
+        data: [moisture, temperature, co2, nitrate, ph],
         backgroundColor: [
-          "#3b82f6", // blue
-          "#ef4444", // red
-          "#22c55e", // green
-          "#eab308", // yellow
-          "#a855f7", // purple
-          "#f97316", // orange
+          "#3E5F44",
+          "#5E936C",
+          "#93DA97",
+          "#5E936C",
+          "#3E5F44",
         ],
-        borderWidth: 2,
-        radius: "90%"
+        borderColor: "#E8FFD7",
+        borderWidth: 3,
+        hoverOffset: 12,
       },
     ],
   };
 
-const pieOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: true,       // show legend again
-      position: "left",    // move labels to the left side
-      labels: {
-        font: {
-          size: 14,
-          weight: "bold",
+  const pieOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          color: "#3E5F44",
+          font: {
+            size: 13,
+            weight: "600",
+          },
+          padding: 20,
+          boxWidth: 14,
         },
-        color: "#374151",  // slate-700
-        boxWidth: 20,      // size of color box
-        padding: 5,       // spacing between items
+      },
+      tooltip: {
+        backgroundColor: "#3E5F44",
+        titleColor: "#E8FFD7",
+        bodyColor: "#E8FFD7",
+        padding: 12,
+        cornerRadius: 8,
       },
     },
-  },
-  layout: {
-    padding: 0,            // remove extra padding
-  },
-};
+  };
 
-
+  const icons = [
+    <CloudIcon className="w-5 h-5 text-[#5E936C]" />,
+    <FireIcon className="w-5 h-5 text-[#5E936C]" />,
+    <ChartBarIcon className="w-5 h-5 text-[#5E936C]" />,
+    <BeakerIcon className="w-5 h-5 text-[#5E936C]" />,
+    <BoltIcon className="w-5 h-5 text-[#5E936C]" />,
+  ];
 
   return (
-    <div className="bg-gradient-to-r from-slate-300 to-slate-300 rounded-xl shadow-lg p-8 border border-slate-200 hover:shadow-xl transition-shadow duration-300 flex flex-col lg:flex-row gap-8">
-      {/* Left side: Recommendations */}
-      <div className="flex-1">
-        <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          Recommendations
-        </h3>
-        <ul className="space-y-4">
-          {recommendations.map((rec, idx) => (
-            <li
-              key={idx}
-              className="flex items-start gap-3 text-lg text-slate-700 leading-relaxed font-medium hover:text-slate-900 transition-colors duration-200"
-            >
-              {icons[idx]}
-              <span>{rec}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-[#93DA97]/40 
+    hover:shadow-md transition-all duration-300">
 
-      {/* Right side: Larger Pie chart */}
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-[330px] h-[330px]"> {/* Increased size */}
-          <Pie data={pieData} options={pieOptions} />
+      <div className="flex flex-col lg:flex-row gap-10">
+
+        {/* LEFT SIDE */}
+        <div className="flex-1">
+
+          <h3 className="text-xl sm:text-2xl font-semibold text-[#3E5F44] mb-6">
+            Recommendations
+          </h3>
+
+          <ul className="space-y-4">
+            {recommendations.map((rec, idx) => (
+              <li
+                key={idx}
+                className="flex items-start gap-3 text-[#3E5F44] leading-relaxed font-medium"
+              >
+                <div className="w-8 h-8 rounded-lg bg-[#E8FFD7] flex items-center justify-center shrink-0">
+                  {icons[idx % icons.length]}
+                </div>
+                <span className="text-sm sm:text-base">{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* RIGHT SIDE - PIE CHART */}
+        <div className="flex-1 flex items-center justify-center">
+
+          <div className="w-[280px] sm:w-[330px] h-[280px] sm:h-[330px]">
+            <Pie data={pieData} options={pieOptions} />
+          </div>
+
         </div>
       </div>
     </div>

@@ -4,84 +4,121 @@ import {
   PhoneIcon,
   ChartBarIcon,
   TableCellsIcon,
-  ArrowRightCircleIcon,
-  PowerIcon,
   DocumentChartBarIcon,
   MapPinIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export default function Sidebar({ isOpen, onClose }) {
+  const location = useLocation();
+
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Mobile Overlay */}
       <div
-        className={`fixed inset-0 bg-black/40 z-30 lg:hidden transition-opacity ${
-          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        className={`fixed inset-0 bg-black/30 z-30 lg:hidden transition-opacity ${
+          isOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
         }`}
         onClick={onClose}
       />
 
       <aside
-        className={`fixed z-40 top-0 left-0 h-screen w-64 bg-slate-800 text-white flex flex-col transform transition-transform duration-300 ease-in-out
+        className={`fixed z-40 top-0 left-0 h-screen w-64 bg-[#3E5F44] 
+        text-[#E8FFD7] flex flex-col transform 
+        transition-transform duration-300 ease-in-out
         ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       >
-        {/* Brand + Close button */}
-        <div className="flex items-center justify-between px-4 py-5 text-xl font-bold tracking-wide border-b border-b-2 border-slate-700">
+        {/* Brand */}
+        <div className="flex items-center justify-between px-5 py-6 text-lg font-semibold tracking-wide border-b border-[#5E936C]/40">
           PLANT MONITOR
           <button
             onClick={onClose}
-            className="lg:hidden p-2 rounded hover:bg-slate-700 transition-colors"
+            className="lg:hidden p-2 rounded-lg hover:bg-[#5E936C]/40 transition"
             aria-label="Close sidebar"
           >
-            <XMarkIcon className="w-6 h-6 text-white" />
+            <XMarkIcon className="w-5 h-5 text-[#E8FFD7]" />
           </button>
         </div>
 
-        {/* Nav links (no overflow here) */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          <SidebarLink icon={<HomeIcon className="w-5 h-5" />} label="Dashboard" to="/" />
-          <SidebarLink icon={<MapPinIcon className="w-5 h-5" />} label="Farm Management" to="/fields" />
-          <SidebarLink icon={<DocumentChartBarIcon className="w-5 h-5" />} label="Reports" to="/reports" />
-          <SidebarLink icon={<ChartBarIcon className="w-5 h-5" />} label="Charts" to="/charts" />
-          <SidebarLink icon={<CubeIcon className="w-5 h-5" />} label="Components" to="/components" />
-          <SidebarLink icon={<TableCellsIcon className="w-5 h-5" />} label="Tables" to="/tables" />
-          <SidebarLink icon={<PhoneIcon className="w-5 h-5" />} label="Contact" to="/contact" />
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2">
+
+          <SidebarLink
+            icon={<HomeIcon className="w-5 h-5" />}
+            label="Dashboard"
+            to="/"
+            active={location.pathname === "/"}
+          />
+
+          <SidebarLink
+            icon={<MapPinIcon className="w-5 h-5" />}
+            label="Farm Management"
+            to="/fields"
+            active={location.pathname === "/fields"}
+          />
+
+          <SidebarLink
+            icon={<DocumentChartBarIcon className="w-5 h-5" />}
+            label="Reports"
+            to="/reports"
+            active={location.pathname === "/reports"}
+          />
+
+          <SidebarLink
+            icon={<ChartBarIcon className="w-5 h-5" />}
+            label="Charts"
+            to="/charts"
+            active={location.pathname === "/charts"}
+          />
+
+          <SidebarLink
+            icon={<CubeIcon className="w-5 h-5" />}
+            label="Components"
+            to="/components"
+            active={location.pathname === "/components"}
+          />
+
+          <SidebarLink
+            icon={<TableCellsIcon className="w-5 h-5" />}
+            label="Tables"
+            to="/tables"
+            active={location.pathname === "/tables"}
+          />
+
+          <SidebarLink
+            icon={<PhoneIcon className="w-5 h-5" />}
+            label="Contact"
+            to="/contact"
+            active={location.pathname === "/contact"}
+          />
         </nav>
-
-        {/* Promo section */}
-        <div className="px-3 py-4 border-t border-slate-700 text-sm">
-          <div className="bg-slate-700 rounded p-3">
-            <p className="font-semibold flex items-center gap-2">
-              Upgrade to Pro <ArrowRightCircleIcon className="w-4 h-4" />
-            </p>
-            <p className="text-slate-300">Advanced analytics, alerts, and automation.</p>
-          </div>
-        </div>
-
-        {/* Logout button */}
-        <div className="px-3 py-4 border-t border-slate-700">
-          <button className="w-full flex items-center gap-2 px-3 py-2 rounded bg-red-600 hover:bg-red-700 transition-colors text-sm font-medium">
-            <PowerIcon className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
       </aside>
     </>
   );
 }
 
-function SidebarLink({ icon, label, to }) {
+function SidebarLink({ icon, label, to, active }) {
   return (
     <Link
       to={to}
-      className="group flex items-center gap-3 px-3 py-2 rounded transition-colors duration-200 hover:bg-slate-700"
+      className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+      ${
+        active
+          ? "bg-[#5E936C] text-white shadow-sm"
+          : "text-[#E8FFD7]/80 hover:bg-[#5E936C]/40 hover:text-white"
+      }`}
     >
-      <span className="text-slate-300 group-hover:text-white transition-colors duration-200">
+      <span
+        className={`transition-colors ${
+          active ? "text-white" : "text-[#93DA97]"
+        }`}
+      >
         {icon}
       </span>
-      <span className="text-sm font-medium">{label}</span>
+      {label}
     </Link>
   );
 }

@@ -1,172 +1,227 @@
-import { CloudIcon, FireIcon, BeakerIcon, SunIcon, } from "@heroicons/react/24/solid";
-import { Leaf } from "phosphor-react"
+import { useEffect, useState } from "react";
+import {
+  CloudIcon,
+  FireIcon,
+  BeakerIcon,
+  SunIcon,
+} from "@heroicons/react/24/solid";
+import { Leaf } from "phosphor-react";
+
+const API_BASE_URL = "http://localhost:5000/api";
+
+const primary = "#3E5F44";
+const secondary = "#5E936C";
+const accent = "#93DA97";
+const bgLight = "#E8FFD7";
 
 export default function TablesPage() {
-  // Dummy datasets
-  const soilData = [
-    { field: "Field A", moisture: "45%", status: "Optimal" },
-    { field: "Field B", moisture: "30%", status: "Low" },
-    { field: "Field C", moisture: "60%", status: "High" },
-    { field: "Field D", moisture: "50%", status: "Optimal" },
-  ];
+  const [farms, setFarms] = useState([]);
+  const [selectedFarmId, setSelectedFarmId] = useState(null);
+  const [fieldData, setFieldData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const tempData = [
-    { field: "Field A", temp: "28°C", status: "Normal" },
-    { field: "Field B", temp: "34°C", status: "High" },
-    { field: "Field C", temp: "22°C", status: "Low" },
-    { field: "Field D", temp: "26°C", status: "Normal" },
-  ];
+  useEffect(() => {
+    fetchFarms();
+  }, []);
 
-  const nutrientData = [
-    { field: "Field A", nitrate: "12 mg/L", ph: "6.5" },
-    { field: "Field B", nitrate: "8 mg/L", ph: "5.8" },
-    { field: "Field C", nitrate: "15 mg/L", ph: "7.0" },
-    { field: "Field D", nitrate: "10 mg/L", ph: "6.2" },
-  ];
+  useEffect(() => {
+    if (selectedFarmId) fetchLatestReadings(selectedFarmId);
+  }, [selectedFarmId]);
 
-  const lightData = [
-    { field: "Field A", lux: "1200", status: "Bright" },
-    { field: "Field B", lux: "800", status: "Moderate" },
-    { field: "Field C", lux: "400", status: "Low" },
-    { field: "Field D", lux: "1500", status: "Bright" },
-  ];
+  const fetchFarms = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/farms`);
+      const data = await res.json();
+      if (data.success) {
+        setFarms(data.farms || []);
+        if (data.farms.length > 0) {
+          setSelectedFarmId(data.farms[0].id);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchLatestReadings = async (farmId) => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/readings/latest-all?farmId=${farmId}`
+      );
+      const data = await res.json();
+      if (data.success) {
+        setFieldData(data.readings || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const moistureStatus = (val) =>
+    val < 40 ? "Low" : val > 65 ? "High" : "Optimal";
+
+  const tempStatus = (val) =>
+    val < 15 ? "Low" : val > 30 ? "High" : "Normal";
+
+  const lightStatus = (val) =>
+    val < 500 ? "Low" : val > 1200 ? "Bright" : "Moderate";
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#E8FFD7]">
+        <div className="text-[#3E5F44]">Loading table data...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-            <h1 className="text-3xl font-extrabold text-slate-800 mb-8 flex items-center gap-2">
-       <Leaf size={35} color="#22c55e" weight="fill" />
-        Plant Monitoring Data Tables
-      </h1>
+    <div className="min-h-screen bg-[#E8FFD7] px-6 py-8 space-y-8">
 
-      {/* Responsive colorful grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8">
-        
-        {/* Soil Moisture */}
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-blue-200">
-                    <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 font-semibold">
-            <CloudIcon className="w-5 h-5" />
-            Soil Moisture
-          </div>
-          <table className="w-full text-sm text-left">
-            <thead className="bg-blue-50">
-              <tr>
-                <th className="px-4 py-2">Field</th>
-                <th className="px-4 py-2">Moisture</th>
-                <th className="px-4 py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {soilData.map((row, idx) => (
-                <tr key={idx} className="odd:bg-white even:bg-blue-50 hover:bg-blue-100">
-                  <td className="px-4 py-2 font-medium">{row.field}</td>
-                  <td className="px-4 py-2">{row.moisture}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold 
-                      ${row.status === "Optimal" ? "bg-green-100 text-green-700" : 
-                        row.status === "Low" ? "bg-red-100 text-red-700" : 
-                        "bg-yellow-100 text-yellow-700"}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h1 className="text-3xl font-semibold text-[#3E5F44] flex items-center gap-2">
+          <Leaf size={32} weight="fill" color={primary} />
+          Monitoring Data Tables
+        </h1>
 
-        {/* Temperature */}
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-red-200">
-         <div className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 font-semibold">
-            <FireIcon className="w-5 h-5" />
-            Temperature
-          </div>
-          <table className="w-full text-sm text-left">
-            <thead className="bg-red-50">
-              <tr>
-                <th className="px-4 py-2">Field</th>
-                <th className="px-4 py-2">Temp</th>
-                <th className="px-4 py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tempData.map((row, idx) => (
-                <tr key={idx} className="odd:bg-white even:bg-red-50 hover:bg-red-100">
-                  <td className="px-4 py-2 font-medium">{row.field}</td>
-                  <td className="px-4 py-2">{row.temp}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold 
-                      ${row.status === "Normal" ? "bg-green-100 text-green-700" : 
-                        row.status === "High" ? "bg-red-100 text-red-700" : 
-                        "bg-yellow-100 text-yellow-700"}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <select
+          value={selectedFarmId || ""}
+          onChange={(e) => setSelectedFarmId(Number(e.target.value))}
+          className="px-4 py-2 rounded-xl border border-[#93DA97] bg-white text-[#3E5F44]"
+        >
+          {farms.map((farm) => (
+            <option key={farm.id} value={farm.id}>
+              {farm.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {/* Nutrients */}
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-yellow-200">
-         <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white px-4 py-2 font-semibold">
-            <BeakerIcon className="w-5 h-5" />
-            Nutrients
-          </div>
-          <table className="w-full text-sm text-left">
-            <thead className="bg-yellow-50">
-              <tr>
-                <th className="px-4 py-2">Field</th>
-                <th className="px-4 py-2">Nitrate</th>
-                <th className="px-4 py-2">pH</th>
-              </tr>
-            </thead>
-            <tbody>
-              {nutrientData.map((row, idx) => (
-                <tr key={idx} className="odd:bg-white even:bg-yellow-50 hover:bg-yellow-100">
-                  <td className="px-4 py-2 font-medium">{row.field}</td>
-                  <td className="px-4 py-2">{row.nitrate}</td>
-                  <td className="px-4 py-2">{row.ph}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* TABLE GRID */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
 
-        {/* Light Levels */}
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-indigo-200">
-           <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-4 py-2 font-semibold">
-            <SunIcon className="w-5 h-5" />
-            Light Levels
-          </div>
-          <table className="w-full text-sm text-left">
-            <thead className="bg-indigo-50">
-              <tr>
-                <th className="px-4 py-2">Field</th>
-                <th className="px-4 py-2">Lux</th>
-                <th className="px-4 py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lightData.map((row, idx) => (
-                <tr key={idx} className="odd:bg-white even:bg-indigo-50 hover:bg-indigo-100">
-                  <td className="px-4 py-2 font-medium">{row.field}</td>
-                  <td className="px-4 py-2">{row.lux}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold 
-                      ${row.status === "Bright" ? "bg-blue-100 text-blue-700" : 
-                        row.status === "Moderate" ? "bg-yellow-100 text-yellow-700" : 
-                        "bg-red-100 text-red-700"}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* SOIL MOISTURE */}
+        <DataTable
+          title="Soil Moisture"
+          icon={<CloudIcon className="w-5 h-5 text-white" />}
+          color="bg-[#3E5F44]"
+          headers={["Field", "Moisture", "Status"]}
+          rows={fieldData.map((row) => [
+            row.fieldName,
+            row.soilMoisture + "%",
+            moistureStatus(row.soilMoisture),
+          ])}
+        />
+
+        {/* TEMPERATURE */}
+        <DataTable
+          title="Temperature"
+          icon={<FireIcon className="w-5 h-5 text-white" />}
+          color="bg-[#5E936C]"
+          headers={["Field", "Temp", "Status"]}
+          rows={fieldData.map((row) => [
+            row.fieldName,
+            row.temperature + "°C",
+            tempStatus(row.temperature),
+          ])}
+        />
+
+        {/* NUTRIENTS */}
+        <DataTable
+          title="Nutrients"
+          icon={<BeakerIcon className="w-5 h-5 text-white" />}
+          color="bg-[#93DA97]"
+          headers={["Field", "Nitrate", "pH"]}
+          rows={fieldData.map((row) => [
+            row.fieldName,
+            row.nitrate + " mg/L",
+            row.ph.toFixed(1),
+          ])}
+        />
+
+        {/* LIGHT */}
+        <DataTable
+          title="Light Levels"
+          icon={<SunIcon className="w-5 h-5 text-white" />}
+          color="bg-[#3E5F44]"
+          headers={["Field", "Lux", "Status"]}
+          rows={fieldData.map((row) => [
+            row.fieldName,
+            row.lux || "N/A",
+            lightStatus(row.lux || 0),
+          ])}
+        />
 
       </div>
     </div>
+  );
+}
+
+/* ---------- Reusable Table Component ---------- */
+
+function DataTable({ title, icon, color, headers, rows }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-[#93DA97]/40 overflow-hidden">
+      
+      <div className={`flex items-center gap-2 px-4 py-3 text-white font-semibold ${color}`}>
+        {icon}
+        {title}
+      </div>
+
+      <table className="w-full text-sm">
+        <thead className="bg-[#E8FFD7]">
+          <tr>
+            {headers.map((h, i) => (
+              <th key={i} className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr
+              key={idx}
+              className="border-t hover:bg-[#E8FFD7]/50 transition"
+            >
+              {row.map((cell, i) => (
+                <td key={i} className="px-4 py-3 text-[#3E5F44]">
+                  {typeof cell === "string" &&
+                  (cell === "Optimal" ||
+                    cell === "Normal") ? (
+                    <StatusBadge text={cell} type="good" />
+                  ) : cell === "Low" ? (
+                    <StatusBadge text="Low" type="low" />
+                  ) : cell === "High" ? (
+                    <StatusBadge text="High" type="high" />
+                  ) : (
+                    cell
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StatusBadge({ text, type }) {
+  const styles =
+    type === "good"
+      ? "bg-green-100 text-green-700"
+      : type === "high"
+      ? "bg-red-100 text-red-700"
+      : "bg-yellow-100 text-yellow-700";
+
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${styles}`}>
+      {text}
+    </span>
   );
 }

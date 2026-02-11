@@ -9,7 +9,6 @@ import {
 import MetricCard from "../components/MetricCard";
 import RecommendationCard from "../components/RecommendationCard";
 import MonitoringStatusCard from "../components/MonitoringStatusCard";
-// charts removed
 
 const API_BASE_URL = "http://localhost:5000/api";
 const ML_SERVICE_URL = "http://localhost:5001/api";
@@ -29,26 +28,24 @@ export default function Dashboard({ user }) {
   const [selectedFarm, setSelectedFarm] = useState(null);
   const [metrics, setMetrics] = useState({});
   const [loading, setLoading] = useState(false);
-
-  // ML state
-  const [predictions, setPredictions] = useState(null);
   const [mlRecommendations, setMlRecommendations] = useState([]);
-  // removed charts state
 
-  // ===================== FETCH FIELDS =====================
+  // ================= FETCH FIELDS =================
   const fetchFields = async () => {
     try {
-      // Fetch farms (includes fields)
       const farmRes = await fetch(`${API_BASE_URL}/farms`);
       const farmData = await farmRes.json();
       if (farmData.success && Array.isArray(farmData.farms)) {
         setFarms(farmData.farms);
-        // if a farm is selected already keep it, else pick first
-        const farmToUse = selectedFarm || (farmData.farms.length > 0 ? farmData.farms[0].id : null);
+        const farmToUse =
+          selectedFarm ||
+          (farmData.farms.length > 0 ? farmData.farms[0].id : null);
         setSelectedFarm(farmToUse);
-        const fieldsList = farmData.farms.find((f) => f.id === farmToUse)?.fields || [];
+        const fieldsList =
+          farmData.farms.find((f) => f.id === farmToUse)?.fields || [];
         setFields(fieldsList);
-        if (!selectedField && fieldsList.length > 0) setSelectedField(fieldsList[0].id);
+        if (!selectedField && fieldsList.length > 0)
+          setSelectedField(fieldsList[0].id);
       } else {
         setFarms([]);
         setFields([]);
@@ -59,86 +56,37 @@ export default function Dashboard({ user }) {
     }
   };
 
-  // ===================== FETCH LATEST (and ML predictions) =====================
+  // ================= FETCH LATEST =================
   const fetchLatest = async (fieldId) => {
     try {
       const res = await fetch(
-        `${API_BASE_URL}/readings/latest${fieldId ? `?fieldId=${fieldId}` : ""}`
+        `${API_BASE_URL}/readings/latest${
+          fieldId ? `?fieldId=${fieldId}` : ""
+        }`
       );
       const data = await res.json();
-
-      if (data.success) {
-        setMetrics(data.readings || {});
-      } else {
-        setMetrics({});
-      }
-
-      // If backend returns the raw reading object, call ML service to get predictions & recommendations
-      const raw = data.rawReading || null;
-      if (raw) {
-        try {
-          const mlRes = await fetch(`${ML_SERVICE_URL}/ml/health`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              CO2_ppm: raw.co2,
-              Nitrate_ppm: raw.nitrate,
-              pH: raw.ph,
-              Temp_C: raw.temperature,
-              Moisture_pct: raw.soilMoisture,
-            }),
-          });
-
-          const mlData = await mlRes.json();
-          if (mlData.success) {
-            setPredictions(mlData.predictions || null);
-            setMlRecommendations(mlData.recommendations || []);
-          } else {
-            // ML returned no success (maybe no model loaded) -> clear ML results
-            setPredictions(null);
-            setMlRecommendations([]);
-            console.warn("ML service responded without success:", mlData);
-          }
-        } catch (mlErr) {
-          console.error("ML prediction error:", mlErr);
-          setPredictions(null);
-          setMlRecommendations([]);
-        }
-      } else {
-        // no raw reading available -> clear ML info
-        setPredictions(null);
-        setMlRecommendations([]);
-      }
+      if (data.success) setMetrics(data.readings || {});
+      else setMetrics({});
     } catch (err) {
       console.error("Latest fetch error:", err);
     }
   };
 
-  // ===================== GENERATE =====================
+  // ================= GENERATE =================
   const generateData = async () => {
     setLoading(true);
     try {
       const body = selectedFarm ? { farmId: selectedFarm } : {};
       const res = await fetch(`${API_BASE_URL}/readings/generate`, {
         method: "POST",
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
       const data = await res.json();
-
-      // backend may return assignedFieldId (round-robin); fall back to current selectedField
       const assigned = data?.assignedFieldId || selectedField;
-      if (data.success) {
-        if (assigned) {
-          setSelectedField(assigned);
-          await fetchLatest(assigned);
-        } else {
-          // no specific field returned -> refresh current
-          await fetchLatest(selectedField);
-        }
-      } else {
-        console.warn("Generate endpoint returned failure:", data);
+      if (data.success && assigned) {
+        setSelectedField(assigned);
+        await fetchLatest(assigned);
       }
     } catch (err) {
       console.error("Generate error:", err);
@@ -147,148 +95,129 @@ export default function Dashboard({ user }) {
     }
   };
 
-  // ===================== INITIAL LOAD =====================
   useEffect(() => {
     fetchFields();
   }, []);
 
-  // fetch farm latest readings (one per field) when farm selected
   useEffect(() => {
-    const fetchFarmLatest = async () => {
-      if (!selectedFarm) return;
-      try {
-        const farm = farms.find((f) => f.id === selectedFarm);
-        if (!farm || !farm.fields || farm.fields.length === 0) return;
-
-        const latestPromises = farm.fields.map((fld) =>
-          fetch(`${API_BASE_URL}/readings/latest?fieldId=${fld.id}`).then((r) => r.json()).then((d) => ({ fieldId: fld.id, fieldName: fld.name, data: d }))
-        );
-
-        const latest = await Promise.all(latestPromises);
-        // build distribution for moisture levels using latest readings
-        const low = latest.filter((l) => l.data?.readings?.soilmoisture?.value < 30).length;
-        const ok = latest.filter((l) => l.data?.readings?.soilmoisture?.value >= 30 && l.data?.readings?.soilmoisture?.value <= 70).length;
-        const high = latest.filter((l) => l.data?.readings?.soilmoisture?.value > 70).length;
-
-        setFarmDistribution([
-          { label: "Low (<30%)", value: low },
-          { label: "Optimal (30-70%)", value: ok },
-          { label: "High (>70%)", value: high },
-        ]);
-      } catch (err) {
-        console.error("Farm latest fetch error:", err);
-      }
-    };
-
-    fetchFarmLatest();
-  }, [selectedFarm, farms]);
-
-  // fetch timeline for selected field
-  useEffect(() => {
-    const fetchFieldTimeline = async () => {
-      if (!selectedField) return;
-      try {
-        const res = await fetch(`${API_BASE_URL}/readings/all?fieldId=${selectedField}&limit=200`);
-        const data = await res.json();
-        if (data.success) {
-          // prepare moisture timeline
-          const timeline = data.readings.map((r) => ({ timestamp: r.timestamp, value: r.soilMoisture }));
-          setFieldTimeline(timeline);
-        }
-      } catch (err) {
-        console.error("Field timeline error:", err);
-      }
-    };
-    fetchFieldTimeline();
-  }, [selectedField]);
-
-  // local UI states for charts
-  const [farmDistribution, setFarmDistribution] = useState([]);
-  const [fieldTimeline, setFieldTimeline] = useState([]);
-
-  useEffect(() => {
-    if (selectedField) {
-      fetchLatest(selectedField);
-    }
+    if (selectedField) fetchLatest(selectedField);
   }, [selectedField]);
 
   const currentField = fields.find((f) => f.id === selectedField);
 
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-[#E8FFD7] px-4 sm:px-6 lg:px-10 py-8 space-y-8 font-sans">
+
+      {/* ================= HEADER ================= */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6">
+
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
-          <p className="text-gray-600">Real-time soil monitoring</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-[#3E5F44]">
+            Dashboard
+          </h1>
+          <p className="text-sm sm:text-base text-[#5E936C]">
+            Real-time soil monitoring
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* DROPDOWNS */}
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+
           {farms.length > 0 && (
-            <select
-              value={selectedFarm || ""}
-              onChange={(e) => {
-                const farmId = parseInt(e.target.value);
-                setSelectedFarm(farmId);
-                const farm = farms.find((x) => x.id === farmId) || { fields: [] };
-                setFields(farm.fields || []);
-                if (farm.fields && farm.fields.length > 0) setSelectedField(farm.fields[0].id);
-              }}
-              className="px-4 py-2 border rounded-lg"
-            >
-              {farms.map((farm) => (
-                <option key={farm.id} value={farm.id}>
-                  {farm.name}{farm.completed ? ' (Completed)' : ''}
-                </option>
-              ))}
-            </select>
+            <div className="relative w-full sm:w-auto">
+              <select
+                value={selectedFarm || ""}
+                onChange={(e) => {
+                  const farmId = parseInt(e.target.value);
+                  setSelectedFarm(farmId);
+                  const farm =
+                    farms.find((x) => x.id === farmId) || { fields: [] };
+                  setFields(farm.fields || []);
+                  if (farm.fields?.length > 0)
+                    setSelectedField(farm.fields[0].id);
+                }}
+                className="appearance-none w-full sm:w-56 px-4 py-2.5 rounded-xl 
+                bg-white border border-[#93DA97]/50 
+                text-[#3E5F44] font-medium 
+                shadow-sm
+                focus:outline-none focus:ring-2 focus:ring-[#5E936C]
+                transition-all"
+              >
+                {farms.map((farm) => (
+                  <option key={farm.id} value={farm.id}>
+                    {farm.name}
+                    {farm.completed ? " (Completed)" : ""}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#5E936C]">
+                ▼
+              </div>
+            </div>
           )}
 
           {fields.length > 0 && (
-            <select
-              value={selectedField || ""}
-              onChange={(e) => setSelectedField(parseInt(e.target.value))}
-              className="px-4 py-2 border rounded-lg"
-            >
-              {fields.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative w-full sm:w-auto">
+              <select
+                value={selectedField || ""}
+                onChange={(e) => setSelectedField(parseInt(e.target.value))}
+                className="appearance-none w-full sm:w-44 px-4 py-2.5 rounded-xl 
+                bg-white border border-[#93DA97]/50 
+                text-[#3E5F44] font-medium 
+                shadow-sm
+                focus:outline-none focus:ring-2 focus:ring-[#5E936C]
+                transition-all"
+              >
+                {fields.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#5E936C]">
+                ▼
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* ACTION BUTTONS */}
-      <div className="flex gap-3">
+      {/* ================= ACTION BUTTONS ================= */}
+      <div className="flex flex-wrap gap-4">
+
         <button
           onClick={generateData}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          className="px-6 py-2.5 rounded-xl bg-[#3E5F44] text-white 
+          hover:bg-[#5E936C] transition-all duration-300 shadow-sm"
         >
           {loading ? "Generating..." : "Generate Data"}
         </button>
 
         <button
           onClick={() => fetchLatest(selectedField)}
-          className="px-4 py-2 bg-gray-600 text-white rounded-lg"
+          className="px-6 py-2.5 rounded-xl bg-[#5E936C] text-white 
+          hover:bg-[#3E5F44] transition-all duration-300 shadow-sm"
         >
           Refresh
         </button>
+
         {selectedFarm && (
           <button
             onClick={async () => {
-              if (!window.confirm('Mark this farm as completed? This will prevent further sampling.')) return;
+              if (!window.confirm("Mark this farm as completed?")) return;
               try {
-                await fetch(`${API_BASE_URL}/farms/${selectedFarm}/complete`, { method: 'POST' });
-                // refresh farms
+                await fetch(
+                  `${API_BASE_URL}/farms/${selectedFarm}/complete`,
+                  { method: "POST" }
+                );
                 await fetchFields();
               } catch (err) {
-                console.error('Complete farm error:', err);
+                console.error("Complete farm error:", err);
               }
             }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg"
+            className="px-6 py-2.5 rounded-xl bg-[#93DA97] text-[#3E5F44] 
+            hover:opacity-90 transition shadow-sm"
           >
             Mark Farm Complete
           </button>
@@ -296,50 +225,72 @@ export default function Dashboard({ user }) {
 
         <button
           onClick={async () => {
-            const name = window.prompt('New farm name');
+            const name = window.prompt("New farm name");
             if (!name) return;
             try {
-              await fetch(`${API_BASE_URL}/farms`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+              await fetch(`${API_BASE_URL}/farms`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+              });
               await fetchFields();
             } catch (err) {
-              console.error('Create farm error:', err);
+              console.error("Create farm error:", err);
             }
           }}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg"
+          className="px-6 py-2.5 rounded-xl bg-[#93DA97] text-[#3E5F44] 
+          hover:opacity-90 transition shadow-sm"
         >
           Add Farm
         </button>
       </div>
 
-      {/* FIELD INFO */}
+      {/* ================= FIELD INFO CARD ================= */}
       {currentField && (
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <strong>Field:</strong> {currentField.name}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#93DA97]/40 flex items-center justify-between">
+
+          <div>
+            <p className="text-sm text-[#5E936C] font-medium">
+              Current Field
+            </p>
+            <h3 className="text-lg font-semibold text-[#3E5F44]">
+              {currentField.name}
+            </h3>
+          </div>
+
+          <div className="w-12 h-12 rounded-xl bg-[#E8FFD7] flex items-center justify-center text-[#3E5F44] text-xl">
+            🌱
+          </div>
         </div>
       )}
 
-      {/* METRICS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {/* ================= METRICS ================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+
         <MetricCard
           title="Moisture"
           value={`${metrics.soilmoisture?.value ?? "--"}%`}
           icon={<CloudIcon className="w-6 h-6" />}
         />
+
         <MetricCard
           title="Temperature"
           value={`${metrics.temperature?.value ?? "--"}°C`}
           icon={<FireIcon className="w-6 h-6" />}
         />
+
         <MetricCard
           title="CO₂"
           value={`${metrics.co2?.value ?? "--"} ppm`}
           icon={<ChartBarIcon className="w-6 h-6" />}
         />
+
         <MetricCard
           title="Nitrate"
           value={`${metrics.nitrate?.value ?? "--"} mg/L`}
           icon={<BeakerIcon className="w-6 h-6" />}
         />
+
         <MetricCard
           title="pH"
           value={`${metrics.ph?.value ?? "--"}`}
@@ -347,25 +298,16 @@ export default function Dashboard({ user }) {
         />
       </div>
 
-      {/* MONITORING */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <MonitoringStatusCard label="Soil Sensor" status="OK" type="success" />
-        <MonitoringStatusCard label="CO₂ Sensor" status="Stable" type="success" />
-      </div>
+      {/* ================= RECOMMENDATIONS ================= */}
+     <RecommendationCard
+  recommendations={
+    mlRecommendations?.length > 0
+      ? mlRecommendations
+      : fallbackRecommendations
+  }
+  metrics={metrics}
+/>
 
-      {/* CHARTS: farm distribution + field timeline */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Charts removed per request */}
-        </div>
-
-      {/* RECOMMENDATIONS */}
-      <RecommendationCard
-        recommendations={
-          mlRecommendations && mlRecommendations.length > 0
-            ? mlRecommendations
-            : fallbackRecommendations
-        }
-      />
     </div>
   );
 }

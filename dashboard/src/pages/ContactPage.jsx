@@ -2,118 +2,90 @@ import {
   EnvelopeIcon,
   UserIcon,
   ChatBubbleLeftRightIcon,
-  CodeBracketIcon,
-  UserGroupIcon,
-  ClockIcon,
   RocketLaunchIcon,
-  ShieldCheckIcon,
-  DocumentTextIcon,
-  CalendarIcon,
-  LinkIcon,
 } from "@heroicons/react/24/outline";
 
 export default function ContactPage() {
   return (
-    <div className="p-8 min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-[#E8FFD7] px-6 py-10">
+
       {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-800 flex items-center gap-2">
-          <EnvelopeIcon className="w-8 h-8 text-blue-500" />
+      <div className="max-w-3xl mx-auto mb-10 text-center">
+        <h1 className="text-3xl font-semibold text-[#3E5F44] flex items-center justify-center gap-2">
+          <EnvelopeIcon className="w-8 h-8 text-[#5E936C]" />
           Contact Us
         </h1>
-        <p className="text-slate-600 mt-2">
-          Have questions or feedback? Send us a message or check the project details below.
+        <p className="text-[#5E936C] mt-3 text-sm md:text-base">
+          Have questions, suggestions, or need support? Send us a message and our team will respond soon.
         </p>
       </div>
 
-      {/* Flex Row: Form + Project Info */}
-      <div className="flex flex-col lg:flex-row gap-8">
-        
-        {/* Contact Form */}
-        <div className="flex-1 bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-slate-700 mb-4 flex items-center gap-2">
-            <ChatBubbleLeftRightIcon className="w-6 h-6 text-blue-500" />
-            Send a Message
-          </h2>
-          <form className="space-y-4">
-            <div className="flex items-center gap-2 border border-slate-300 rounded-md p-2 focus-within:ring-2 focus-within:ring-blue-500">
-              <UserIcon className="w-5 h-5 text-slate-400" />
+      {/* Contact Form Card */}
+      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-[#93DA97]/40 p-8">
+
+        <h2 className="text-lg font-semibold text-[#3E5F44] mb-6 flex items-center gap-2">
+          <ChatBubbleLeftRightIcon className="w-6 h-6 text-[#5E936C]" />
+          Send a Message
+        </h2>
+
+        <form className="space-y-6">
+
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-[#3E5F44] mb-2">
+              Your Name
+            </label>
+            <div className="flex items-center gap-3 border border-[#93DA97] rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#5E936C] transition">
+              <UserIcon className="w-5 h-5 text-[#5E936C]" />
               <input
                 type="text"
-                placeholder="Your Name"
-                className="flex-1 outline-none"
+                placeholder="Enter your name"
+                className="flex-1 outline-none text-[#3E5F44] placeholder:text-[#5E936C]/60"
               />
             </div>
-            <div className="flex items-center gap-2 border border-slate-300 rounded-md p-2 focus-within:ring-2 focus-within:ring-blue-500">
-              <EnvelopeIcon className="w-5 h-5 text-slate-400" />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-[#3E5F44] mb-2">
+              Your Email
+            </label>
+            <div className="flex items-center gap-3 border border-[#93DA97] rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#5E936C] transition">
+              <EnvelopeIcon className="w-5 h-5 text-[#5E936C]" />
               <input
                 type="email"
-                placeholder="Your Email"
-                className="flex-1 outline-none"
+                placeholder="Enter your email"
+                className="flex-1 outline-none text-[#3E5F44] placeholder:text-[#5E936C]/60"
               />
             </div>
-            <div className="flex items-start gap-2 border border-slate-300 rounded-md p-2 focus-within:ring-2 focus-within:ring-blue-500">
-              <ChatBubbleLeftRightIcon className="w-5 h-5 text-slate-400 mt-1" />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="block text-sm font-medium text-[#3E5F44] mb-2">
+              Message
+            </label>
+            <div className="flex items-start gap-3 border border-[#93DA97] rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#5E936C] transition">
+              <ChatBubbleLeftRightIcon className="w-5 h-5 text-[#5E936C] mt-1" />
               <textarea
-                rows="4"
-                placeholder="Write your message..."
-                className="flex-1 outline-none"
+                rows="5"
+                placeholder="Write your message here..."
+                className="flex-1 outline-none text-[#3E5F44] placeholder:text-[#5E936C]/60 resize-none"
               ></textarea>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <RocketLaunchIcon className="w-5 h-5" />
-              Send Message
-            </button>
-          </form>
-        </div>
+          </div>
 
-        {/* Project Information Section */}
-        <div className="flex-1 bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-slate-700 mb-4 flex items-center gap-2">
-            <CodeBracketIcon className="w-6 h-6 text-green-500" />
-            Project Information
-          </h2>
-          <ul className="space-y-4 text-slate-700">
-            <li className="flex items-center gap-2">
-              <RocketLaunchIcon className="w-5 h-5 text-purple-500" />
-              <span className="font-medium">Current Version:</span> v2.3.1 
-              <span className="ml-2 px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs">Stable</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <ClockIcon className="w-5 h-5 text-orange-500" />
-              <span className="font-medium">Last Updated:</span> January 2026
-            </li>
-            <li className="flex items-center gap-2">
-              <ShieldCheckIcon className="w-5 h-5 text-blue-500" />
-              <span className="font-medium">Changelog:</span> Performance improvements, new chart components, bug fixes
-            </li>
-            <li className="flex items-center gap-2">
-              <CodeBracketIcon className="w-5 h-5 text-indigo-500" />
-              <span className="font-medium">Technologies:</span> React, Tailwind CSS, Chart.js, Node.js
-            </li>
-            <li className="flex items-center gap-2">
-              <UserGroupIcon className="w-5 h-5 text-pink-500" />
-              <span className="font-medium">Contributors:</span> 8 active developers
-            </li>
-            {/* New Info */}
-            <li className="flex items-center gap-2">
-              <DocumentTextIcon className="w-5 h-5 text-teal-500" />
-              <span className="font-medium">License:</span> MIT Open Source
-            </li>
-            <li className="flex items-center gap-2">
-              <LinkIcon className="w-5 h-5 text-gray-500" />
-              <span className="font-medium">Issue Tracker:</span> github.com/example/project/issues
-            </li>
-            <li className="flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-red-500" />
-              <span className="font-medium">Next Release:</span> v2.4 scheduled for March 2026
-            </li>
-          </ul>
-        </div>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="w-full bg-[#3E5F44] hover:bg-[#2f4734] text-white py-3 rounded-xl font-medium transition flex items-center justify-center gap-2"
+          >
+            <RocketLaunchIcon className="w-5 h-5" />
+            Send Message
+          </button>
+        </form>
       </div>
+
     </div>
   );
 }

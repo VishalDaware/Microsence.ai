@@ -1,8 +1,7 @@
 import {
+  Bars3Icon,
   BellIcon,
   EnvelopeIcon,
-  Bars3Icon,
-  ArrowPathIcon,
   ArrowRightOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
@@ -10,116 +9,81 @@ import { useNavigate } from "react-router-dom";
 
 export default function Topbar({ onToggleSidebar, user, onLogout }) {
   const navigate = useNavigate();
-  const [selectedField, setSelectedField] = useState("Field 1");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      console.log("Data refreshed for:", selectedField);
-    }, 1500);
-  };
 
   const handleLogout = () => {
     onLogout();
     navigate("/login");
   };
 
+  const firstLetter = user?.name
+    ? user.name.charAt(0).toUpperCase()
+    : "U";
+
   return (
-    <header className="w-full bg-white border-b border-b-2 border-blue-300 shadow px-6 py-4 flex items-center justify-between sticky top-0 z-30">
-      {/* Left: mobile toggle + field dropdown */}
-      <div className="flex items-center gap-4">
-        <button
-          className="lg:hidden p-2 rounded hover:bg-slate-100 transition-colors"
-          onClick={onToggleSidebar}
-          aria-label="Toggle sidebar"
-        >
-          <Bars3Icon className="w-7 h-7 text-slate-700" />
-        </button>
+    <header className="w-full bg-white border-b border-[#93DA97]/40 shadow-sm px-6 py-4 flex items-center justify-between sticky top-0 z-30">
 
-        <div className="relative">
-          <select
-            value={selectedField}
-            onChange={(e) => setSelectedField(e.target.value)}
-            className="appearance-none bg-gradient-to-r from-blue-50 to-blue-100 text-slate-700 
-                       rounded-lg px-4 py-2 text-sm shadow focus:outline-none focus:ring-2 
-                       focus:ring-blue-400 hover:shadow-md transition-all cursor-pointer"
-          >
-            <option>Field 1</option>
-            <option>Field 2</option>
-            <option>Field 3</option>
-          </select>
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
-            ▼
-          </span>
-        </div>
+      {/* LEFT: Sidebar Toggle (Mobile) */}
+      <button
+        className="lg:hidden p-2 rounded-lg hover:bg-[#E8FFD7] transition"
+        onClick={onToggleSidebar}
+        aria-label="Toggle sidebar"
+      >
+        <Bars3Icon className="w-6 h-6 text-[#3E5F44]" />
+      </button>
 
-        <button
-          onClick={handleRefresh}
-          className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg 
-                     font-semibold text-sm shadow hover:bg-blue-600 cursor-pointer active:scale-[0.98] transition-all"
-        >
-          <ArrowPathIcon
-            className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </button>
-      </div>
+      {/* RIGHT: Icons + Profile */}
+      <div className="flex items-center gap-6 ml-auto">
 
-      {/* Center: Terms & FAQ */}
-      <div className="hidden md:flex items-center gap-6">
-        <button className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">
-          Terms & Conditions
-        </button>
-        <button className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">
-          FAQ
-        </button>
-        <button className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">
-          About Application
-        </button>
-      </div>
-
-      {/* Right: icons + user profile */}
-      <div className="flex items-center gap-5">
+        {/* Notifications */}
         <IconButton ariaLabel="Notifications">
-          <BellIcon className="w-6 h-6 text-slate-600" />
-        </IconButton>
-        <IconButton ariaLabel="Messages">
-          <EnvelopeIcon className="w-6 h-6 text-slate-600" />
+          <BellIcon className="w-6 h-6 text-[#5E936C]" />
         </IconButton>
 
-        {/* User Profile Menu */}
+        {/* Messages */}
+        <IconButton ariaLabel="Messages">
+          <EnvelopeIcon className="w-6 h-6 text-[#5E936C]" />
+        </IconButton>
+
+        {/* Profile */}
         <div className="relative">
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 hover:bg-slate-100 px-2 py-1 rounded-lg transition-colors"
+            className="flex items-center gap-3 hover:bg-[#E8FFD7] px-3 py-2 rounded-xl transition"
           >
-            <img
-              src="https://i.pravatar.cc/40"
-              alt="user"
-              className="w-9 h-9 rounded-full ring-2 ring-slate-200"
-            />
-            <span className="text-slate-700 font-semibold text-sm hidden sm:inline">
+            {/* Letter Avatar */}
+            <div className="w-10 h-10 rounded-full bg-[#3E5F44] text-[#E8FFD7] 
+            flex items-center justify-center font-semibold text-lg shadow-sm">
+              {firstLetter}
+            </div>
+
+            <span className="text-[#3E5F44] font-semibold text-sm hidden sm:inline">
               {user?.name || "User"}
             </span>
           </button>
 
-          {/* Dropdown Menu */}
+          {/* Profile Dropdown */}
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-              <div className="px-4 py-2 border-b border-gray-200">
-                <p className="text-sm font-semibold text-slate-700">{user?.name}</p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
+            <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-lg border border-[#93DA97]/40 py-3 z-50">
+
+              <div className="px-4 pb-3 border-b border-[#93DA97]/30">
+                <p className="text-sm font-semibold text-[#3E5F44]">
+                  {user?.name}
+                </p>
+                <p className="text-xs text-[#5E936C]">
+                  {user?.email}
+                </p>
               </div>
+
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors text-sm font-medium"
+                className="w-full flex items-center gap-2 px-4 py-3 
+                text-[#3E5F44] hover:bg-[#E8FFD7] transition text-sm font-medium"
               >
                 <ArrowRightOnRectangleIcon className="w-4 h-4" />
                 Logout
               </button>
+
             </div>
           )}
         </div>
@@ -132,7 +96,7 @@ function IconButton({ children, ariaLabel }) {
   return (
     <button
       aria-label={ariaLabel}
-      className="p-2 rounded hover:bg-slate-100 transition-colors"
+      className="p-2 rounded-lg hover:bg-[#E8FFD7] transition"
     >
       {children}
     </button>

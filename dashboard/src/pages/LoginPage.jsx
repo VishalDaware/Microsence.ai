@@ -26,7 +26,6 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (!formData.email || !formData.password) {
       setError('Email and password are required');
       return;
@@ -37,10 +36,7 @@ export default function LoginPage() {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
@@ -50,115 +46,120 @@ export default function LoginPage() {
         return;
       }
 
-      // Store user info in localStorage
       localStorage.setItem('user', JSON.stringify(data.user));
-      
-      // Dispatch a custom event to notify other components
       window.dispatchEvent(new Event('userLoggedIn'));
-      
-      // Small delay to ensure state updates
+
       setTimeout(() => {
         navigate('/dashboard');
       }, 100);
     } catch (err) {
       setError('Failed to login. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+    <div className="min-h-screen bg-[#E8FFD7] flex items-center justify-center px-4">
+
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-[#93DA97]/40 p-8">
+
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">Welcome Back</h1>
-          <p className="text-gray-600 mt-2">Sign in to your account</p>
+          <h1 className="text-2xl font-semibold text-[#3E5F44]">
+            Welcome Back
+          </h1>
+          <p className="text-[#5E936C] mt-2 text-sm">
+            Sign in to access your farm dashboard
+          </p>
         </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
-            ❌ {error}
+          <div className="mb-5 p-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
+            {error}
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          {/* Email Field */}
+        <form onSubmit={handleLogin} className="space-y-5">
+
+          {/* Email */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-[#3E5F44] mb-2">
               Email Address
             </label>
             <div className="relative">
-              <EnvelopeIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <EnvelopeIcon className="absolute left-3 top-3 w-5 h-5 text-[#5E936C]" />
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="you@example.com"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-3 border border-[#93DA97] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5E936C] text-[#3E5F44] placeholder:text-[#5E936C]/60"
                 disabled={loading}
               />
             </div>
           </div>
 
-          {/* Password Field */}
+          {/* Password */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-[#3E5F44] mb-2">
               Password
             </label>
             <div className="relative">
-              <LockClosedIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <LockClosedIcon className="absolute left-3 top-3 w-5 h-5 text-[#5E936C]" />
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Your password"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your password"
+                className="w-full pl-10 pr-4 py-3 border border-[#93DA97] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5E936C] text-[#3E5F44] placeholder:text-[#5E936C]/60"
                 disabled={loading}
               />
             </div>
           </div>
 
-          {/* Remember Me & Forgot Password */}
+          {/* Remember + Forgot */}
           <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center">
-              <input type="checkbox" className="rounded" disabled={loading} />
-              <span className="ml-2 text-gray-600">Remember me</span>
+            <label className="flex items-center gap-2 text-[#5E936C]">
+              <input
+                type="checkbox"
+                className="rounded border-[#93DA97] text-[#3E5F44] focus:ring-[#5E936C]"
+                disabled={loading}
+              />
+              Remember me
             </label>
-            <a href="#" className="text-blue-500 hover:text-blue-600">
+
+            <button
+              type="button"
+              className="text-[#3E5F44] hover:underline"
+            >
               Forgot password?
-            </a>
+            </button>
           </div>
 
-          {/* Login Button */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[#3E5F44] hover:bg-[#2f4734] text-white font-medium py-3 rounded-xl transition disabled:opacity-60"
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
         {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Don't have an account?</span>
-          </div>
+        <div className="my-6 text-center text-sm text-[#5E936C]">
+          Don’t have an account?
         </div>
 
         {/* Signup Link */}
         <Link
           to="/signup"
-          className="block w-full text-center bg-gray-100 text-gray-700 font-semibold py-2 rounded-lg hover:bg-gray-200 transition-all duration-300"
+          className="block w-full text-center border border-[#93DA97] text-[#3E5F44] font-medium py-3 rounded-xl hover:bg-[#93DA97]/20 transition"
         >
           Create Account
         </Link>
