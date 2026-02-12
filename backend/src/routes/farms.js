@@ -4,17 +4,23 @@ const prisma = require('../lib/prisma');
 const router = express.Router();
 
 /**
- * GET /api/farms
- * List farms for the admin user (or all farms)
+ * GET /api/farms?userId=
+ * List farms for the given user
  */
 router.get('/', async (req, res) => {
   try {
-    let adminUser = await prisma.user.findUnique({ where: { email: 'admin@farm.local' } });
-    if (!adminUser) {
-      adminUser = await prisma.user.create({ data: { name: 'Admin', email: 'admin@farm.local', password: 'admin123' } });
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
     }
 
-    const farms = await prisma.farm.findMany({ where: { userId: adminUser.id }, include: { fields: true }, orderBy: { createdAt: 'asc' } });
+    const farms = await prisma.farm.findMany({
+      where: { userId: parseInt(userId) },
+      include: { fields: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
     res.json({ success: true, farms });
   } catch (error) {
     console.error('Error fetching farms:', error);
@@ -24,19 +30,18 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/farms
- * Create a new farm (name, location)
+ * Create a new farm (name, location, userId)
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, location } = req.body;
+    const { name, location, userId } = req.body;
+
     if (!name) return res.status(400).json({ success: false, error: 'Farm name is required' });
+    if (!userId) return res.status(400).json({ success: false, error: 'User ID is required' });
 
-    let adminUser = await prisma.user.findUnique({ where: { email: 'admin@farm.local' } });
-    if (!adminUser) {
-      adminUser = await prisma.user.create({ data: { name: 'Admin', email: 'admin@farm.local', password: 'admin123' } });
-    }
-
-    const farm = await prisma.farm.create({ data: { name, location: location || '', userId: adminUser.id } });
+    const farm = await prisma.farm.create({
+      data: { name, location: location || '', userId: parseInt(userId) },
+    });
     res.json({ success: true, farm });
   } catch (error) {
     console.error('Error creating farm:', error);
@@ -51,10 +56,57 @@ router.post('/', async (req, res) => {
 router.post('/:id/complete', async (req, res) => {
   try {
     const farmId = parseInt(req.params.id);
-    const farm = await prisma.farm.update({ where: { id: farmId }, data: { completed: true } });
-    res.json({ success: true, farm });
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    // Verify ownership
+    const farm = await prisma.farm.findUnique({ where: { id: farmId } });
+    if (!farm) return res.status(404).json({ success: false, error: 'Farm not found' });
+    if (farm.userId !== parseInt(userId)) {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const updatedFarm = await prisma.farm.update({
+      where: { id: farmId },
+      data: { completed: true },
+    });
+
+    res.json({ success: true, farm: updatedFarm });
   } catch (error) {
     console.error('Error marking farm complete:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/farms/:id
+ * Delete a farm and all its fields
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const farmId = parseInt(req.params.id);
+    const farm = await prisma.farm.findUnique({ where: { id: farmId } });
+    if (!farm) return res.status(404).json({ success: false, error: 'Farm not found' });
+
+    // Delete all readings for all fields in this farm
+    await prisma.sensorReading.deleteMany({
+      where: { field: { farmId } },
+    });
+
+    // Delete all fields in this farm
+    await prisma.field.deleteMany({
+      where: { farmId },
+    });
+
+    // Delete the farm
+    await prisma.farm.delete({ where: { id: farmId } });
+
+    res.json({ success: true, message: 'Farm deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting farm:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

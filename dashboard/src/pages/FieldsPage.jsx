@@ -14,6 +14,7 @@ export default function FieldsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [userId, setUserId] = useState(null);
 
   const [showFarmModal, setShowFarmModal] = useState(false);
   const [showFieldModal, setShowFieldModal] = useState(false);
@@ -25,11 +26,20 @@ export default function FieldsPage() {
     location: "",
   });
 
+  // Get userId from localStorage on mount
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(parseInt(storedUserId));
+    }
+  }, []);
+
   // ================= FETCH FARMS =================
   const fetchFarms = async () => {
+    if (!userId) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/farms`);
+      const res = await fetch(`${API_BASE_URL}/farms?userId=${userId}`);
       const data = await res.json();
       if (data.success) setFarms(data.farms || []);
     } catch (err) {
@@ -41,8 +51,10 @@ export default function FieldsPage() {
   };
 
   useEffect(() => {
-    fetchFarms();
-  }, []);
+    if (userId) {
+      fetchFarms();
+    }
+  }, [userId]);
 
   // ================= CREATE FARM =================
   const handleCreateFarm = async (e) => {
@@ -53,7 +65,7 @@ export default function FieldsPage() {
       const res = await fetch(`${API_BASE_URL}/farms`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: farmName }),
+        body: JSON.stringify({ name: farmName, userId }),
       });
       const data = await res.json();
       if (data.success) {

@@ -18,6 +18,26 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function RecommendationCard({ recommendations, metrics }) {
 
+  // Debug logging
+  console.log("📋 RecommendationCard rendered with props:", {
+    recommendationCount: recommendations?.length,
+    recommendationType: typeof recommendations,
+    isArray: Array.isArray(recommendations),
+    recommendations: JSON.stringify(recommendations),
+    metricsKeys: Object.keys(metrics || {})
+  });
+
+  if (recommendations && recommendations.length > 0) {
+    console.log(`✨ RENDERING ${recommendations.length} ML RECOMMENDATIONS`);
+    recommendations.forEach((rec, idx) => {
+      console.log(`  [${idx}] ${rec}`);
+    });
+  } else {
+    console.log(`⚠️ RENDERING FALLBACK - recommendations falsy or empty`);
+    console.log(`  - recommendations: ${recommendations}`);
+    console.log(`  - length: ${recommendations?.length}`);
+  }
+
   // Extract numeric values safely
   const moisture = parseFloat(metrics?.soilmoisture?.value) || 0;
   const temperature = parseFloat(metrics?.temperature?.value) || 0;
@@ -92,17 +112,24 @@ export default function RecommendationCard({ recommendations, metrics }) {
           </h3>
 
           <ul className="space-y-4">
-            {recommendations.map((rec, idx) => (
-              <li
-                key={idx}
-                className="flex items-start gap-3 text-[#3E5F44] leading-relaxed font-medium"
-              >
-                <div className="w-8 h-8 rounded-lg bg-[#E8FFD7] flex items-center justify-center shrink-0">
-                  {icons[idx % icons.length]}
-                </div>
-                <span className="text-sm sm:text-base">{rec}</span>
-              </li>
-            ))}
+            {recommendations && recommendations.length > 0 ? (
+              recommendations.map((rec, idx) => {
+                console.log(`  [${idx}] ${rec}`);
+                return (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-3 text-[#3E5F44] leading-relaxed font-medium"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-[#E8FFD7] flex items-center justify-center shrink-0">
+                      {icons[idx % icons.length]}
+                    </div>
+                    <span>{rec}</span>
+                  </li>
+                );
+              })
+            ) : (
+              <li className="text-[#5E936C] italic">No recommendations available</li>
+            )}
           </ul>
         </div>
 

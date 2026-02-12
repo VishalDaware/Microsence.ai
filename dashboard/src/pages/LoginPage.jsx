@@ -46,7 +46,14 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Store user data including userId
+      const userData = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('userId', data.user.id.toString());
       window.dispatchEvent(new Event('userLoggedIn'));
 
       setTimeout(() => {

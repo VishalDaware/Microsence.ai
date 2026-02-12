@@ -123,34 +123,62 @@ def predict_health():
         "Moisture_pct": float
     }
     """
+    print("\n========== ML HEALTH PREDICTION CALLED ==========")
+    
     if models is None:
+        print("❌ Models not loaded!")
         return jsonify({'error': 'Models not loaded'}), 500
     
     try:
         data = request.json
+        print(f"📥 Received input data: {data}")
         
         # Validate input
         required_fields = models['features']
+        print(f"⚙️  Required fields: {required_fields}")
+        
         for field in required_fields:
             if field not in data:
+                print(f"❌ Missing field: {field}")
                 return jsonify({'error': f'Missing field: {field}'}), 400
         
+        print(f"✓ All required fields present")
+        
         # Prepare input
+        print(f"📊 Building feature array from data...")
         X = np.array([[data[feat] for feat in required_fields]])
+        print(f"✓ Feature array shape: {X.shape}")
+        
         X_scaled = models['scaler'].transform(X)
+        print(f"✓ Scaled input: {X_scaled}")
         
         # Get predictions
+        print(f"🔮 Making predictions...")
         health_score = float(models['regressor'].predict(X_scaled)[0])
+        print(f"  - Health score: {health_score}")
+        
         health_category = models['classifier'].predict(X_scaled)[0]
+        print(f"  - Health category: {health_category}")
+        
         probabilities = models['classifier'].predict_proba(X_scaled)[0]
+        print(f"  - Class probabilities: {list(zip(models['classifier'].classes_, probabilities))}")
         
         # Clamp health score between 0-10
         health_score = max(0, min(10, health_score))
+        print(f"  - Clamped health score: {health_score}")
         
         # Generate recommendations
+        print(f"\n🎯 Generating recommendations...")
         recommendations = generate_recommendations(data, health_score, health_category)
+        print(f"✓ Generated {len(recommendations)} recommendations:")
+        for i, rec in enumerate(recommendations, 1):
+            print(f"  {i}. {rec}")
         
-        return jsonify({
+        print(f"\n✓ Recommendations array type: {type(recommendations)}")
+        print(f"✓ Recommendations array length: {len(recommendations)}")
+        print(f"✓ First recommendation: {recommendations[0] if recommendations else 'EMPTY'}")
+        
+        response = {
             'success': True,
             'predictions': {
                 'health_score': round(health_score, 2),
@@ -163,9 +191,23 @@ def predict_health():
             'recommendations': recommendations,
             'input_data': data,
             'timestamp': datetime.now().isoformat()
-        })
+        }
+        
+        print(f"\n✨ Final response structure:")
+        print(f"  - success: {response['success']}")
+        print(f"  - health_score: {response['predictions']['health_score']}")
+        print(f"  - health_category: {response['predictions']['health_category']}")
+        print(f"  - recommendations: {len(response['recommendations'])} items")
+        print(f"  - recommendations type: {type(response['recommendations'])}")
+        
+        print("========== ML HEALTH PREDICTION COMPLETE ==========\n")
+        return jsonify(response)
     
     except Exception as e:
+        print(f"❌ Error in predict_health: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print("========== ML HEALTH PREDICTION ERROR ==========\n")
         return jsonify({'error': str(e)}), 400
 
 @app.route('/api/ml/status', methods=['GET'])

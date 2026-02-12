@@ -19,18 +19,30 @@ export default function TablesPage() {
   const [selectedFarmId, setSelectedFarmId] = useState(null);
   const [fieldData, setFieldData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
 
+  // Get userId from localStorage on mount
   useEffect(() => {
-    fetchFarms();
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(parseInt(storedUserId));
+    }
   }, []);
 
   useEffect(() => {
-    if (selectedFarmId) fetchLatestReadings(selectedFarmId);
-  }, [selectedFarmId]);
+    if (userId) {
+      fetchFarms();
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (selectedFarmId && userId) fetchLatestReadings(selectedFarmId);
+  }, [selectedFarmId, userId]);
 
   const fetchFarms = async () => {
+    if (!userId) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/farms`);
+      const res = await fetch(`${API_BASE_URL}/farms?userId=${userId}`);
       const data = await res.json();
       if (data.success) {
         setFarms(data.farms || []);
@@ -44,14 +56,35 @@ export default function TablesPage() {
   };
 
   const fetchLatestReadings = async (farmId) => {
+    if (!userId) return;
     setLoading(true);
     try {
+      // Fetch all readings for the farm, then extract latest per field
       const res = await fetch(
-        `${API_BASE_URL}/readings/latest-all?farmId=${farmId}`
+        `${API_BASE_URL}/readings/all?farmId=${farmId}&userId=${userId}&limit=1000`
       );
       const data = await res.json();
       if (data.success) {
-        setFieldData(data.readings || []);
+        // Transform readings: get latest reading per field
+        const latestByField = {};
+        data.readings.forEach((reading) => {
+          const fieldId = reading.fieldId;
+          if (!latestByField[fieldId] || reading.timestamp > latestByField[fieldId].timestamp) {
+            latestByField[fieldId] = reading;
+          }
+        });
+
+        // Convert to array format for table
+        const tableData = Object.values(latestByField).map((reading) => ({
+          fieldName: reading.field?.name || `Field ${reading.fieldId}`,
+          soilMoisture: reading.soilMoisture || 0,
+          temperature: reading.temperature || 0,
+          co2: reading.co2 || 0,
+          nitrate: reading.nitrate || 0,
+          ph: reading.ph || 0,
+        }));
+
+        setFieldData(tableData);
       }
     } catch (err) {
       console.error(err);
