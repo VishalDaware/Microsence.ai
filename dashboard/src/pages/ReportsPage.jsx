@@ -9,7 +9,6 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import html2pdf from "html2pdf.js";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -60,7 +59,7 @@ const optimalRegionPlugin = {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend, optimalRegionPlugin);
 
-export default function ReportsPage() {
+export default function ReportsPage({ onNotification }) {
   const [farms, setFarms] = useState([]);
   const [selectedFarm, setSelectedFarm] = useState(null);
   const [fields, setFields] = useState([]);
@@ -71,7 +70,49 @@ export default function ReportsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const previewRef = useRef(null);
 
+  // Refs for chart canvases
+  const chartRefs = {
+    moisture: useRef(null),
+    temperature: useRef(null),
+    co2: useRef(null),
+    nitrate: useRef(null),
+    ph: useRef(null),
+    health: useRef(null),
+  };
+
   const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  // ================= GENERATE NOTIFICATIONS FOR LOW VALUES =================
+  const generateNotifications = (data) => {
+    if (!onNotification || !data) return;
+
+    // Check for low values and create notifications
+    const THRESHOLDS = {
+      soilMoisture: { min: 40, warning: 'Soil moisture is low' },
+      temperature: { min: 24, warning: 'Temperature is below optimal' },
+      co2: { min: 400, warning: 'CO₂ level is low' },
+      nitrate: { min: 15, warning: 'Nitrate level is low' },
+      ph: { min: 6.0, warning: 'pH level is low' },
+    };
+
+    (data || []).forEach((field) => {
+      if (field.soilMoisture && field.soilMoisture < THRESHOLDS.soilMoisture.min) {
+        onNotification('⚠️ Low Soil Moisture', `${field.fieldName}: ${field.soilMoisture}% (optimal: 40-65%)`);
+      }
+      if (field.temperature && field.temperature < THRESHOLDS.temperature.min) {
+        onNotification('🌡️ Low Temperature', `${field.fieldName}: ${field.temperature}°C (optimal: 24-28°C)`);
+      }
+      if (field.co2 && field.co2 < THRESHOLDS.co2.min) {
+        onNotification('💨 Low CO₂ Level', `${field.fieldName}: ${field.co2}ppm (optimal: 400-600ppm)`);
+      }
+      if (field.nitrate && field.nitrate < THRESHOLDS.nitrate.min) {
+        onNotification('🌱 Low Nitrate', `${field.fieldName}: ${field.nitrate}mg/L (optimal: 15-25mg/L)`);
+      }
+      if (field.ph && field.ph < THRESHOLDS.ph.min) {
+        onNotification('📊 Low pH', `${field.fieldName}: ${field.ph} (optimal: 6.0-6.5)`);
+      }
+    });
+  };
 
   // ================= FETCH FARMS =================
   useEffect(() => {
@@ -132,6 +173,9 @@ export default function ReportsPage() {
         }));
 
         setFieldData(tableData);
+        
+        // Generate notifications for low values
+        generateNotifications(tableData);
       } else {
         setFieldData([]);
       }
@@ -166,28 +210,62 @@ export default function ReportsPage() {
     }
   };
 
-  // ================= DOWNLOAD REPORT (PDF from preview DOM) =================
+  // ================= DOWNLOAD REPORT (Server-side PDF generation) =================
   const downloadPreviewPdf = async () => {
-    if (!previewRef.current) return;
-
-    const element = previewRef.current;
-    const filename = `soil-report-${new Date()
-      .toISOString()
-      .split("T")[0]}.pdf`;
-
-    const opt = {
-      margin: 0.3,
-      filename,
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
-    };
+    if (!reportData || !selectedFarm) return;
 
     try {
-      await html2pdf().set(opt).from(element).save();
+      setLoading(true);
+      
+      // Capture chart images
+      const chartImages = {};
+      const chartKeys = ['moisture', 'temperature', 'co2', 'nitrate', 'ph', 'health'];
+      
+      for (const key of chartKeys) {
+        const canvas = chartRefs[key].current?.canvas;
+        if (canvas) {
+          chartImages[key] = canvas.toDataURL('image/png');
+        }
+      }
+
+      // Prepare data for server-side PDF generation
+      const pdfPayload = {
+        userId: user?.id,
+        farmId: selectedFarm,
+        reportData: reportData,
+        farmName: currentFarm?.name || 'Selected Farm',
+        userName: user?.name || user?.fullName || user?.email || 'Current user',
+        fieldData: fieldData,
+        chartImages: chartImages, // Add chart images
+      };
+
+      // Request PDF from backend
+      const response = await fetch(`${API_BASE_URL}/reports/generate-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pdfPayload),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
+      }
+
+      // Get PDF blob and trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `soil-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Error generating PDF from preview:", err);
-      alert("Unable to generate PDF from preview. Please try again.");
+      console.error('Error generating PDF from server:', err);
+      alert('Unable to generate PDF. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -287,7 +365,7 @@ export default function ReportsPage() {
                   Total readings
                 </p>
                 <p className="text-xl font-semibold text-[#3E5F44]">
-                  {reportData.totalReadings ?? "--"}
+                  {reportData.totalReadings ? reportData.totalReadings - 1 : "--"}
                 </p>
               </div>
 
@@ -472,6 +550,7 @@ export default function ReportsPage() {
               const makeBarOpts = (optimalKey) => ({
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 plugins: {
                   legend: {
                     labels: {
@@ -510,6 +589,7 @@ export default function ReportsPage() {
                         Soil Moisture across Fields
                       </p>
                       <Bar
+                        ref={chartRefs.moisture}
                         data={{
                           labels: fieldNames,
                           datasets: [
@@ -532,6 +612,7 @@ export default function ReportsPage() {
                         Temperature across Fields
                       </p>
                       <Bar
+                        ref={chartRefs.temperature}
                         data={{
                           labels: fieldNames,
                           datasets: [
@@ -554,6 +635,7 @@ export default function ReportsPage() {
                         CO₂ across Fields
                       </p>
                       <Bar
+                        ref={chartRefs.co2}
                         data={{
                           labels: fieldNames,
                           datasets: [
@@ -576,6 +658,7 @@ export default function ReportsPage() {
                         Nitrate across Fields
                       </p>
                       <Bar
+                        ref={chartRefs.nitrate}
                         data={{
                           labels: fieldNames,
                           datasets: [
@@ -598,6 +681,7 @@ export default function ReportsPage() {
                         pH across Fields
                       </p>
                       <Bar
+                        ref={chartRefs.ph}
                         data={{
                           labels: fieldNames,
                           datasets: [
@@ -620,6 +704,7 @@ export default function ReportsPage() {
                         Overall Soil Health across Fields
                       </p>
                       <Bar
+                        ref={chartRefs.health}
                         data={{
                           labels: fieldNames,
                           datasets: [
@@ -642,6 +727,7 @@ export default function ReportsPage() {
                         options={{
                           responsive: true,
                           maintainAspectRatio: false,
+                          animation: false,
                           plugins: {
                             legend: {
                               labels: {

@@ -22,6 +22,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [sentMails, setSentMails] = useState([]);
 
   // Check if user is logged in on app load
   useEffect(() => {
@@ -67,6 +69,30 @@ export default function App() {
     setIsLoggedIn(false);
   };
 
+  const addNotification = (title, message) => {
+    const notification = {
+      id: Date.now(),
+      title,
+      message,
+      timestamp: new Date().toLocaleString(),
+    };
+    setNotifications((prev) => [notification, ...prev].slice(0, 10)); // Keep last 10
+  };
+
+  const removeNotification = (id) => {
+    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
+  };
+
+  const addSentMail = (name, email, message) => {
+    const mail = {
+      name,
+      email,
+      message,
+      timestamp: new Date().toLocaleString(),
+    };
+    setSentMails((prev) => [mail, ...prev].slice(0, 10)); // Keep last 10
+  };
+
   return (
     <Router>
       {isLoggedIn ? (
@@ -79,6 +105,9 @@ export default function App() {
                 onToggleSidebar={() => setSidebarOpen((s) => !s)}
                 user={user}
                 onLogout={handleLogout}
+                notifications={notifications}
+                onRemoveNotification={removeNotification}
+                sentMails={sentMails}
               />
             </div>
             <main className="min-h-[calc(100vh-56px)] overflow-y-auto">
@@ -87,8 +116,8 @@ export default function App() {
                   <Route path="/" element={<Dashboard user={user} />} />
                   <Route path="/dashboard" element={<Dashboard user={user} />} />
                   <Route path="/fields" element={<FieldsPage />} />
-                  <Route path="/contact" element={<ContactPage />} />
-                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/contact" element={<ContactPage onMailSent={addSentMail} />} />
+                  <Route path="/reports" element={<ReportsPage onNotification={addNotification} />} />
                   <Route path="/charts" element={<ChartsPage />} />
                   <Route path="/tables" element={<TablesPage />} />
                   <Route path="*" element={<Navigate to="/" />} />
