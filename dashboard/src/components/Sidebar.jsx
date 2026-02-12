@@ -75,13 +75,6 @@ export default function Sidebar({ isOpen, onClose }) {
           />
 
           <SidebarLink
-            icon={<CubeIcon className="w-5 h-5" />}
-            label="Components"
-            to="/components"
-            active={location.pathname === "/components"}
-          />
-
-          <SidebarLink
             icon={<TableCellsIcon className="w-5 h-5" />}
             label="Tables"
             to="/tables"

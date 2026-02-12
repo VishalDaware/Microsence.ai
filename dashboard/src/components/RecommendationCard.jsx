@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import {
   CloudIcon,
   FireIcon,
@@ -6,15 +7,105 @@ import {
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
 
-import { Pie } from "react-chartjs-2";
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
-  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
   Tooltip,
   Legend,
 } from "chart.js";
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+// Custom plugin to draw the optimal region as a light band
+const optimalRegionPlugin = {
+  id: "optimalRegion",
+  beforeDatasetsDraw(chart) {
+    const {
+      ctx,
+      chartArea,
+      scales: { y },
+      options,
+    } = chart;
+
+    if (!chartArea || !y) return;
+
+    const pluginOpts = options?.plugins?.optimalRegion;
+    const optimalMin = pluginOpts?.optimalMin;
+    const optimalMax = pluginOpts?.optimalMax;
+
+    if (
+      typeof optimalMin !== "number" ||
+      typeof optimalMax !== "number" ||
+      optimalMin === optimalMax
+    ) {
+      return;
+    }
+
+    const { top, bottom, left, right } = chartArea;
+
+    const yTop = y.getPixelForValue(optimalMax);
+    const yBottom = y.getPixelForValue(optimalMin);
+
+    ctx.save();
+    ctx.fillStyle = "rgba(147, 218, 151, 0.18)"; // soft green band
+    ctx.fillRect(left, yTop, right - left, yBottom - yTop);
+    ctx.restore();
+  },
+};
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend,
+  optimalRegionPlugin
+);
+
+// Frontend representation of optimal ranges inferred from ml_service.py
+const METRIC_CONFIG = {
+  soilmoisture: {
+    key: "soilmoisture",
+    label: "Moisture (%)",
+    shortLabel: "Moisture",
+    unit: "%",
+    optimalMin: 40,
+    optimalMax: 70,
+  },
+  temperature: {
+    key: "temperature",
+    label: "Temperature (°C)",
+    shortLabel: "Temp",
+    unit: "°C",
+    optimalMin: 15,
+    optimalMax: 30,
+  },
+  co2: {
+    key: "co2",
+    label: "CO₂ (ppm)",
+    shortLabel: "CO₂",
+    unit: "ppm",
+    optimalMin: 300,
+    optimalMax: 800,
+  },
+  nitrate: {
+    key: "nitrate",
+    label: "Nitrate (ppm)",
+    shortLabel: "Nitrate",
+    unit: "ppm",
+    optimalMin: 10,
+    optimalMax: 30,
+  },
+  ph: {
+    key: "ph",
+    label: "pH",
+    shortLabel: "pH",
+    unit: "",
+    optimalMin: 6.0,
+    optimalMax: 7.5,
+  },
+};
 
 export default function RecommendationCard({ recommendations, metrics }) {
 
@@ -45,47 +136,96 @@ export default function RecommendationCard({ recommendations, metrics }) {
   const nitrate = parseFloat(metrics?.nitrate?.value) || 0;
   const ph = parseFloat(metrics?.ph?.value) || 0;
 
-  const pieData = {
-    labels: ["Moisture", "Temperature", "CO₂", "Nitrate", "pH"],
+  const [selectedMetricKey, setSelectedMetricKey] = useState("temperature");
+
+  const metricValues = useMemo(
+    () => ({
+      soilmoisture: moisture,
+      temperature,
+      co2,
+      nitrate,
+      ph,
+    }),
+    [moisture, temperature, co2, nitrate, ph]
+  );
+
+  const selectedConfig =
+    METRIC_CONFIG[selectedMetricKey] ?? METRIC_CONFIG.temperature;
+
+  const currentValue = metricValues[selectedConfig.key] ?? 0;
+
+  const chartData = {
+    labels: ["Current"],
     datasets: [
       {
-        data: [moisture, temperature, co2, nitrate, ph],
-        backgroundColor: [
-          "#3E5F44",
-          "#5E936C",
-          "#93DA97",
-          "#5E936C",
-          "#3E5F44",
-        ],
-        borderColor: "#E8FFD7",
-        borderWidth: 3,
-        hoverOffset: 12,
+        label: selectedConfig.label,
+        data: [currentValue],
+        backgroundColor: "#5E936C",
+        borderRadius: 10,
+        borderSkipped: false,
       },
     ],
   };
 
-  const pieOptions = {
+  const suggestedMax = (() => {
+    const base = selectedConfig.optimalMax || currentValue || 1;
+    const maxVal = Math.max(base, currentValue);
+    return maxVal * 1.2;
+  })();
+
+  const barOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "bottom",
-        labels: {
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
           color: "#3E5F44",
           font: {
-            size: 13,
+            size: 12,
             weight: "600",
           },
-          padding: 20,
-          boxWidth: 14,
         },
+      },
+      y: {
+        beginAtZero: true,
+        suggestedMax,
+        grid: {
+          color: "rgba(62, 95, 68, 0.08)",
+          drawBorder: false,
+        },
+        ticks: {
+          color: "#3E5F44",
+          font: {
+            size: 11,
+          },
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        display: false,
       },
       tooltip: {
         backgroundColor: "#3E5F44",
         titleColor: "#E8FFD7",
         bodyColor: "#E8FFD7",
-        padding: 12,
+        padding: 10,
         cornerRadius: 8,
+        callbacks: {
+          label: (ctx) => {
+            const v = ctx.parsed.y ?? 0;
+            return `${selectedConfig.label}: ${v.toFixed(2)}${
+              selectedConfig.unit ? ` ${selectedConfig.unit}` : ""
+            }`;
+          },
+        },
+      },
+      optimalRegion: {
+        optimalMin: selectedConfig.optimalMin,
+        optimalMax: selectedConfig.optimalMax,
       },
     },
   };
@@ -133,13 +273,45 @@ export default function RecommendationCard({ recommendations, metrics }) {
           </ul>
         </div>
 
-        {/* RIGHT SIDE - PIE CHART */}
-        <div className="flex-1 flex items-center justify-center">
-
-          <div className="w-[280px] sm:w-[330px] h-[280px] sm:h-[330px]">
-            <Pie data={pieData} options={pieOptions} />
+        {/* RIGHT SIDE - METRIC CHART WITH TOGGLE */}
+        <div className="flex-1 flex flex-col gap-4 items-center justify-center">
+          {/* metric toggle */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {Object.keys(METRIC_CONFIG).map((key) => {
+              const cfg = METRIC_CONFIG[key];
+              const isActive = key === selectedMetricKey;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelectedMetricKey(key)}
+                  className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold border transition ${
+                    isActive
+                      ? "bg-[#5E936C] text-white border-[#5E936C] shadow-sm"
+                      : "bg-white text-[#5E936C] border-[#93DA97] hover:bg-[#E8FFD7]"
+                  }`}
+                >
+                  {cfg.shortLabel}
+                </button>
+              );
+            })}
           </div>
 
+          {/* chart + legend */}
+          <div className="w-[280px] sm:w-[330px] h-[260px] sm:h-[300px]">
+            <Bar data={chartData} options={barOptions} />
+          </div>
+
+          <div className="text-xs sm:text-sm text-[#3E5F44] bg-[#E8FFD7]/60 px-3 py-2 rounded-xl text-center max-w-xs">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <span className="inline-block w-3 h-3 rounded-full bg-[rgba(147,218,151,0.5)] border border-[#5E936C]/30" />
+              <span className="font-semibold">Optimal region</span>
+            </div>
+            <p>
+              {selectedConfig.optimalMin} – {selectedConfig.optimalMax}
+              {selectedConfig.unit ? ` ${selectedConfig.unit}` : ""}
+            </p>
+          </div>
         </div>
       </div>
     </div>

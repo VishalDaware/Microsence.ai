@@ -1,18 +1,9 @@
 import { useEffect, useState } from "react";
-import {
-  CloudIcon,
-  FireIcon,
-  BeakerIcon,
-  SunIcon,
-} from "@heroicons/react/24/solid";
 import { Leaf } from "phosphor-react";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
 const primary = "#3E5F44";
-const secondary = "#5E936C";
-const accent = "#93DA97";
-const bgLight = "#E8FFD7";
 
 export default function TablesPage() {
   const [farms, setFarms] = useState([]);
@@ -82,6 +73,7 @@ export default function TablesPage() {
           co2: reading.co2 || 0,
           nitrate: reading.nitrate || 0,
           ph: reading.ph || 0,
+          timestamp: reading.timestamp || null,
         }));
 
         setFieldData(tableData);
@@ -99,8 +91,14 @@ export default function TablesPage() {
   const tempStatus = (val) =>
     val < 15 ? "Low" : val > 30 ? "High" : "Normal";
 
-  const lightStatus = (val) =>
-    val < 500 ? "Low" : val > 1200 ? "Bright" : "Moderate";
+  const co2Status = (val) =>
+    val < 300 ? "Low" : val > 800 ? "High" : "Optimal";
+
+  const nitrateStatus = (val) =>
+    val < 10 ? "Low" : val > 30 ? "High" : "Optimal";
+
+  const phStatus = (val) =>
+    val < 6 ? "Low" : val > 7.5 ? "High" : "Optimal";
 
   if (loading) {
     return (
@@ -117,7 +115,7 @@ export default function TablesPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h1 className="text-3xl font-semibold text-[#3E5F44] flex items-center gap-2">
           <Leaf size={32} weight="fill" color={primary} />
-          Monitoring Data Tables
+          Monitoring Data Table
         </h1>
 
         <select
@@ -133,128 +131,171 @@ export default function TablesPage() {
         </select>
       </div>
 
-      {/* TABLE GRID */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      {/* SINGLE CONSOLIDATED TABLE */}
+      <div className="bg-white rounded-2xl shadow-sm border border-[#93DA97]/40 overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#93DA97]/40 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[#3E5F44]">
+            Latest sensor readings per field
+          </h2>
+          <p className="text-xs text-[#5E936C]">
+            Values compared against recommended ranges
+          </p>
+        </div>
 
-        {/* SOIL MOISTURE */}
-        <DataTable
-          title="Soil Moisture"
-          icon={<CloudIcon className="w-5 h-5 text-white" />}
-          color="bg-[#3E5F44]"
-          headers={["Field", "Moisture", "Status"]}
-          rows={fieldData.map((row) => [
-            row.fieldName,
-            row.soilMoisture + "%",
-            moistureStatus(row.soilMoisture),
-          ])}
-        />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-[#E8FFD7]">
+              <tr>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Field
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Moisture (%)
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Moisture status
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Temp (°C)
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Temp status
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  CO₂ (ppm)
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  CO₂ status
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Nitrate (mg/L)
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Nitrate status
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  pH
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  pH status
+                </th>
+                <th className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
+                  Last updated
+                </th>
+              </tr>
+            </thead>
 
-        {/* TEMPERATURE */}
-        <DataTable
-          title="Temperature"
-          icon={<FireIcon className="w-5 h-5 text-white" />}
-          color="bg-[#5E936C]"
-          headers={["Field", "Temp", "Status"]}
-          rows={fieldData.map((row) => [
-            row.fieldName,
-            row.temperature + "°C",
-            tempStatus(row.temperature),
-          ])}
-        />
+            <tbody>
+              {fieldData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={12}
+                    className="px-4 py-6 text-center text-[#5E936C]"
+                  >
+                    No readings available for this farm yet.
+                  </td>
+                </tr>
+              ) : (
+                fieldData.map((row, idx) => {
+                  const mStatus = moistureStatus(row.soilMoisture);
+                  const tStatus = tempStatus(row.temperature);
+                  const cStatus = co2Status(row.co2);
+                  const nStatus = nitrateStatus(row.nitrate);
+                  const pStatus = phStatus(row.ph);
 
-        {/* NUTRIENTS */}
-        <DataTable
-          title="Nutrients"
-          icon={<BeakerIcon className="w-5 h-5 text-white" />}
-          color="bg-[#93DA97]"
-          headers={["Field", "Nitrate", "pH"]}
-          rows={fieldData.map((row) => [
-            row.fieldName,
-            row.nitrate + " mg/L",
-            row.ph.toFixed(1),
-          ])}
-        />
+                  const statusClass = (status) =>
+                    status === "Optimal"
+                      ? "bg-green-100 text-green-700"
+                      : status === "High"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-yellow-100 text-yellow-700";
 
-        {/* LIGHT */}
-        <DataTable
-          title="Light Levels"
-          icon={<SunIcon className="w-5 h-5 text-white" />}
-          color="bg-[#3E5F44]"
-          headers={["Field", "Lux", "Status"]}
-          rows={fieldData.map((row) => [
-            row.fieldName,
-            row.lux || "N/A",
-            lightStatus(row.lux || 0),
-          ])}
-        />
+                  const formatDate = (ts) =>
+                    ts ? new Date(ts).toLocaleString() : "N/A";
 
+                  return (
+                    <tr
+                      key={idx}
+                      className="border-t hover:bg-[#E8FFD7]/40 transition"
+                    >
+                      <td className="px-4 py-3 text-[#3E5F44] font-medium whitespace-nowrap">
+                        {row.fieldName}
+                      </td>
+                      <td className="px-4 py-3 text-[#3E5F44]">
+                        {row.soilMoisture.toFixed
+                          ? row.soilMoisture.toFixed(1)
+                          : row.soilMoisture}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass(
+                            mStatus
+                          )}`}
+                        >
+                          {mStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[#3E5F44]">
+                        {row.temperature.toFixed
+                          ? row.temperature.toFixed(1)
+                          : row.temperature}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass(
+                            tStatus
+                          )}`}
+                        >
+                          {tStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[#3E5F44]">
+                        {row.co2}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass(
+                            cStatus
+                          )}`}
+                        >
+                          {cStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[#3E5F44]">
+                        {row.nitrate}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass(
+                            nStatus
+                          )}`}
+                        >
+                          {nStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[#3E5F44]">
+                        {row.ph.toFixed ? row.ph.toFixed(1) : row.ph}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass(
+                            pStatus
+                          )}`}
+                        >
+                          {pStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[#5E936C] whitespace-nowrap">
+                        {formatDate(row.timestamp)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-  );
-}
-
-/* ---------- Reusable Table Component ---------- */
-
-function DataTable({ title, icon, color, headers, rows }) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-[#93DA97]/40 overflow-hidden">
-      
-      <div className={`flex items-center gap-2 px-4 py-3 text-white font-semibold ${color}`}>
-        {icon}
-        {title}
-      </div>
-
-      <table className="w-full text-sm">
-        <thead className="bg-[#E8FFD7]">
-          <tr>
-            {headers.map((h, i) => (
-              <th key={i} className="px-4 py-3 text-left text-[#3E5F44] font-semibold">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr
-              key={idx}
-              className="border-t hover:bg-[#E8FFD7]/50 transition"
-            >
-              {row.map((cell, i) => (
-                <td key={i} className="px-4 py-3 text-[#3E5F44]">
-                  {typeof cell === "string" &&
-                  (cell === "Optimal" ||
-                    cell === "Normal") ? (
-                    <StatusBadge text={cell} type="good" />
-                  ) : cell === "Low" ? (
-                    <StatusBadge text="Low" type="low" />
-                  ) : cell === "High" ? (
-                    <StatusBadge text="High" type="high" />
-                  ) : (
-                    cell
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function StatusBadge({ text, type }) {
-  const styles =
-    type === "good"
-      ? "bg-green-100 text-green-700"
-      : type === "high"
-      ? "bg-red-100 text-red-700"
-      : "bg-yellow-100 text-yellow-700";
-
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${styles}`}>
-      {text}
-    </span>
   );
 }

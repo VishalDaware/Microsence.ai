@@ -5,7 +5,6 @@ import Topbar from "./components/Topbar";
 
 // Import your pages
 import Dashboard from "./pages/Dashboard";
-import ComponentsPage from "./pages/ComponentsPage";
 import ContactPage from "./pages/ContactPage";
 import ReportsPage from "./pages/ReportsPage";
 import ChartsPage from "./pages/ChartsPage";
@@ -88,7 +87,6 @@ export default function App() {
                   <Route path="/" element={<Dashboard user={user} />} />
                   <Route path="/dashboard" element={<Dashboard user={user} />} />
                   <Route path="/fields" element={<FieldsPage />} />
-                  <Route path="/components" element={<ComponentsPage />} />
                   <Route path="/contact" element={<ContactPage />} />
                   <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/charts" element={<ChartsPage />} />
