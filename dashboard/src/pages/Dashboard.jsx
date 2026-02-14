@@ -290,7 +290,7 @@ export default function Dashboard({ user }) {
           className="px-6 py-2.5 rounded-xl bg-[#3E5F44] text-white 
           hover:bg-[#5E936C] transition-all duration-300 shadow-sm"
         >
-          {loading ? "Generating..." : "Generate Data"}
+          {loading ? "Generating..." : "Fetch Data"}
         </button>
 
         <button
@@ -299,17 +299,6 @@ export default function Dashboard({ user }) {
           hover:bg-[#3E5F44] transition-all duration-300 shadow-sm"
         >
           Refresh
-        </button>
-
-        <button
-          onClick={() => {
-            console.log("🧪 TEST: Manually fetching recommendations for field:", selectedField);
-            fetchRecommendations(selectedField);
-          }}
-          className="px-6 py-2.5 rounded-xl bg-[#93DA97] text-[#3E5F44] 
-          hover:opacity-90 transition shadow-sm font-medium"
-        >
-          Test Recommendations
         </button>
 
         {selectedFarm && (
